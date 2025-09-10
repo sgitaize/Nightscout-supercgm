@@ -1,0 +1,47 @@
+{
+  "name": "supercgm-ns",
+  "version": "0.1.0",
+  "description": "Watchface with 5 flexible rows: time, date, weekday, battery, weather, Nightscout BG, steps.",
+  "author": "sgitaize",
+  "license": "MIT",
+  "pebble": {
+    "displayName": "supercgm-ns",
+    "uuid": "b8c0b2a6-2a7a-4d9e-8a1a-3f4c7b4a9e10",
+  "sdkVersion": "3",
+    "projectType": "native",
+    "enableMultiJS": false,
+    "resources": {
+      "media": [
+        {
+          "type": "font",
+          "name": "FONT_DSEG_42",
+          "file": "fonts/DSEG14Classic-Regular.ttf",
+          "size": 42,
+                "characterRegex": "[0-9A-Z:%/ °F-]"
+        }
+      ]
+    },
+    "messageKeys": [
+      "ROW1_TYPE", "ROW2_TYPE", "ROW3_TYPE", "ROW4_TYPE", "ROW5_TYPE",
+      "ROW1_COLOR", "ROW2_COLOR", "ROW3_COLOR", "ROW4_COLOR", "ROW5_COLOR",
+      "GHOST_COLOR",
+      "SHOW_LEADING_ZERO",
+  "DATE_FORMAT", "WEEKDAY_LANG", "TEMP_UNIT",
+      "BG_URL", "BG_TIMEOUT_MIN", "BG_THRESH_LOW", "BG_THRESH_HIGH",
+  "WEATHER_INTERVAL_MIN",
+      "COLOR_LOW", "COLOR_HIGH", "COLOR_IN_RANGE",
+      "REQUEST_WEATHER", "REQUEST_BG",
+  "WEATHER_TEMP",
+  "BG_SGV", "BG_TIMESTAMP", "BG_STATUS", "BG_UNIT", "BG_TREND"
+    ],
+    "capabilities": [
+      "configurable",
+      "location",
+      "health"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+  "targetPlatforms": ["basalt"]
+  }
+}

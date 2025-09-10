@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>supercgm-ns Config</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>supercgm-ns</h1>
+
+    <section>
+      <h2>Rows</h2>
+      <p>Arrange and style the 5 rows. Drag to reorder.</p>
+      <ul id="rows" class="rows"></ul>
+      <button id="add-weather">Add Weather</button>
+      <button id="add-time">Add Time</button>
+      <button id="add-date">Add Date</button>
+      <button id="add-weekday">Add Weekday</button>
+      <button id="add-battery">Add Battery</button>
+      <button id="add-bg">Add Nightscout BG</button>
+      <button id="add-steps">Add Steps</button>
+    </section>
+
+    <section>
+      <h2>Formatting</h2>
+      <label><input type="checkbox" id="leadingZero" checked> Leading zero for time</label>
+      <div>
+        Date format:
+        <label><input type="radio" name="datefmt" value="0" checked> dd/mm</label>
+        <label><input type="radio" name="datefmt" value="1"> mm/dd</label>
+      </div>
+      <div>
+        Weekday language:
+        <label><input type="radio" name="wdlang" value="0" checked> German</label>
+        <label><input type="radio" name="wdlang" value="1"> English</label>
+      </div>
+      <div>
+        Temperature unit:
+        <label><input type="radio" name="tempunit" value="C" checked> °C</label>
+        <label><input type="radio" name="tempunit" value="F"> °F</label>
+      </div>
+      <div>
+        Weather refresh (min):
+        <input type="number" id="weatherInt" value="30" min="5" max="180">
+      </div>
+    </section>
+
+    <section>
+      <h2>Nightscout</h2>
+      <label>Nightscout URL <input type="url" id="bgUrl" placeholder="https://myns.herokuapp.com"></label>
+      <label>Timeout (min) <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
+      <div>
+        CGM Einheit:
+        <label><input type="radio" name="bgunit" value="mgdl" checked> mg/dL</label>
+        <label><input type="radio" name="bgunit" value="mmol"> mmol/L</label>
+      </div>
+      <div class="thresholds">
+        <label>Low <input type="number" id="low" value="80"></label>
+        <label>High <input type="number" id="high" value="180"></label>
+      </div>
+      <div class="colors">
+        <label>Color Low <input type="color" id="colLow" value="#ff0000"></label>
+        <label>Color In-range <input type="color" id="colIn" value="#00ff00"></label>
+        <label>Color High <input type="color" id="colHigh" value="#ffff00"></label>
+        <label>Ghost Color <input type="color" id="ghost" value="#333333"></label>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="save">Save</button>
+      <button id="cancel" class="secondary">Cancel</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
