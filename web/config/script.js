@@ -1,9 +1,6 @@
 (function(){
   'use strict';
 
-  var list = document.getElementById('rows');
-  var rows = [];
-
   var RowTypes = [
     { id: 0, name: 'Weather' },
     { id: 1, name: 'Time' },
@@ -14,74 +11,147 @@
     { id: 6, name: 'Steps' }
   ];
 
-  function addRow(typeId) {
-    if (rows.length >= 5) return;
-    var color = '#ffffff';
-    rows.push({ type: typeId, color: color });
-    render();
+  var defaultRows = [
+    { type: 0, color: '#00ffff' },
+    { type: 1, color: '#ffffff' },
+    { type: 2, color: '#aaaaaa' },
+    { type: 3, color: '#aaaaaa' },
+    { type: 5, color: '#00ff00' }
+  ];
+
+  function byId(id){return document.getElementById(id);}  
+
+  function supportsColorInput() {
+    var i = document.createElement('input');
+    i.setAttribute('type','color');
+    var supported = (i.type === 'color');
+    return supported;
   }
 
-  function render() {
-    list.innerHTML = '';
-    rows.forEach(function(r, idx){
-      var li = document.createElement('li'); li.className = 'row'; li.draggable = true;
-      li.addEventListener('dragstart', function(e){ e.dataTransfer.setData('text/plain', idx.toString()); });
-      li.addEventListener('dragover', function(e){ e.preventDefault(); });
-      li.addEventListener('drop', function(e){ e.preventDefault(); var from = parseInt(e.dataTransfer.getData('text/plain'),10); var to = idx; var moved = rows.splice(from,1)[0]; rows.splice(to,0,moved); render(); });
-      var handle = document.createElement('span'); handle.textContent = '↕'; handle.className='handle';
-      var sel = document.createElement('select');
+  function buildRowsForm() {
+    var form = byId('rows-form');
+    var typeSelects = form.querySelectorAll('select.row-type');
+    typeSelects.forEach(function(sel, idx){
+      sel.innerHTML = '';
       RowTypes.forEach(function(rt){
         var o = document.createElement('option');
-        o.value = rt.id; o.textContent = rt.name; if (rt.id === r.type) o.selected = true; sel.appendChild(o);
+        o.value = rt.id; o.textContent = rt.name; sel.appendChild(o);
       });
-      sel.onchange = function(){ r.type = parseInt(sel.value,10); };
-      var color = document.createElement('input'); color.type='color'; color.value=r.color; color.oninput=function(){ r.color=color.value; };
-      var rm = document.createElement('button'); rm.textContent='Remove'; rm.className='secondary'; rm.onclick=function(){ rows.splice(idx,1); render(); };
-      li.appendChild(handle); li.appendChild(sel); li.appendChild(color); li.appendChild(rm);
-      list.appendChild(li);
+      sel.value = String(defaultRows[idx].type);
+    });
+    var colorInputs = form.querySelectorAll('input.row-color');
+    var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
+    var useFallback = !supportsColorInput();
+    colorInputs.forEach(function(inp, idx){
+      inp.value = defaultRows[idx].color;
+      if (useFallback) { inp.hidden = true; colorFallbacks[idx].hidden = false; colorFallbacks[idx].value = defaultRows[idx].color; }
     });
   }
 
-  function byId(id){return document.getElementById(id);}  
-  function save() {
-    // pad to 5 rows with ghost placeholders
-    while (rows.length < 5) rows.push({ type: 1, color: '#ffffff' });
+  function collectRows() {
+    var form = byId('rows-form');
+    var typeSelects = form.querySelectorAll('select.row-type');
+    var colorInputs = form.querySelectorAll('input.row-color');
+    var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
+    var useFallback = !supportsColorInput();
+    var rows = [];
+    for (var i=0;i<5;i++) {
+      var type = parseInt(typeSelects[i].value,10);
+      var color = useFallback ? colorFallbacks[i].value : colorInputs[i].value;
+      rows.push({ type:type, color:color });
+    }
+    return rows;
+  }
 
+  function updateBGSectionVisibility() {
+    var rows = collectRows();
+    var anyBG = rows.some(function(r){ return r.type === 5; });
+    var nsSection = byId('bg-section');
+    if (nsSection) nsSection.style.display = anyBG ? '' : 'none';
+  }
+
+  function save() {
+  var rows = collectRows();
+  var useFallback = !supportsColorInput();
+  // Read BG colors with fallback
+  var colLow = useFallback ? byId('colLowFallback').value : byId('colLow').value;
+  var colIn  = useFallback ? byId('colInFallback').value  : byId('colIn').value;
+  var colHigh= useFallback ? byId('colHighFallback').value: byId('colHigh').value;
+  var ghost  = useFallback ? byId('ghostFallback').value  : byId('ghost').value;
     var payload = {
       showLeadingZero: byId('leadingZero').checked,
       dateFormat: parseInt(document.querySelector('input[name="datefmt"]:checked').value,10),
       weekdayLang: parseInt(document.querySelector('input[name="wdlang"]:checked').value,10),
-  tempUnit: document.querySelector('input[name="tempunit"]:checked').value,
-  weatherIntervalMin: parseInt(byId('weatherInt').value,10),
+      tempUnit: document.querySelector('input[name="tempunit"]:checked').value,
+      weatherIntervalMin: parseInt(byId('weatherInt').value,10),
       bgUrl: byId('bgUrl').value.trim(),
       bgTimeoutMin: parseInt(byId('bgTimeout').value,10),
-  bgUnit: document.querySelector('input[name="bgunit"]:checked').value,
+      bgUnit: document.querySelector('input[name="bgunit"]:checked').value,
       low: parseInt(byId('low').value,10),
       high: parseInt(byId('high').value,10),
       colors: {
-        low: byId('colLow').value,
-        in: byId('colIn').value,
-        high: byId('colHigh').value,
-        ghost: byId('ghost').value
+    low: colLow,
+    in: colIn,
+    high: colHigh,
+    ghost: ghost
       },
-      rows: rows.slice(0,5)
+      rows: rows
     };
+  try { localStorage.setItem('supercgm_config', JSON.stringify(payload)); } catch(e) {}
     document.location = 'pebblejs://close#' + encodeURIComponent(JSON.stringify(payload));
   }
 
   function cancel(){ document.location = 'pebblejs://close'; }
 
-  // initial defaults
-  addRow(1); addRow(5); addRow(2);
+  function init() {
+    buildRowsForm();
+    // Setup color fallbacks visibility for BG colors
+    var useFallback = !supportsColorInput();
+    ['colLow','colIn','colHigh','ghost'].forEach(function(id){
+      var input = byId(id);
+      var sel = byId(id+'Fallback');
+      if (useFallback) { input.hidden = true; sel.hidden = false; sel.value = input.value; }
+    });
+    // Restore prior config if available
+    try {
+      var saved = localStorage.getItem('supercgm_config');
+      if (saved) {
+        var cfg = JSON.parse(saved);
+        byId('leadingZero').checked = !!cfg.showLeadingZero;
+        document.querySelector('input[name="datefmt"][value="'+(cfg.dateFormat||0)+'"]').checked = true;
+        document.querySelector('input[name="wdlang"][value="'+(cfg.weekdayLang||0)+'"]').checked = true;
+        document.querySelector('input[name="tempunit"][value="'+(cfg.tempUnit||'C')+'"]').checked = true;
+        byId('weatherInt').value = cfg.weatherIntervalMin || 30;
+        byId('bgUrl').value = cfg.bgUrl || '';
+        byId('bgTimeout').value = cfg.bgTimeoutMin || 20;
+        document.querySelector('input[name="bgunit"][value="'+(cfg.bgUnit||'mgdl')+'"]').checked = true;
+        byId('low').value = cfg.low || 80;
+        byId('high').value = cfg.high || 180;
+        var useFb = !supportsColorInput();
+        (useFb?byId('colLowFallback'):byId('colLow')).value = (cfg.colors&&cfg.colors.low)||'#ff0000';
+        (useFb?byId('colInFallback'):byId('colIn')).value = (cfg.colors&&cfg.colors.in)||'#00ff00';
+        (useFb?byId('colHighFallback'):byId('colHigh')).value = (cfg.colors&&cfg.colors.high)||'#ffff00';
+  (useFb?byId('ghostFallback'):byId('ghost')).value = (cfg.colors&&cfg.colors.ghost)||'#2a2a2a';
+        var form = byId('rows-form');
+        var typeSelects = form.querySelectorAll('select.row-type');
+        var colorInputs = form.querySelectorAll('input.row-color');
+        var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
+        for (var i=0;i<5;i++) {
+          if (cfg.rows && cfg.rows[i]) {
+            typeSelects[i].value = String(cfg.rows[i].type);
+            if (useFb) colorFallbacks[i].value = cfg.rows[i].color; else colorInputs[i].value = cfg.rows[i].color;
+          }
+        }
+      }
+    } catch(e) {}
+    // Update BG section visibility when any row type changes
+    byId('rows-form').addEventListener('change', function(e){
+      if (e.target && (e.target.classList.contains('row-type'))) updateBGSectionVisibility();
+    });
+    updateBGSectionVisibility();
+    byId('save').onclick=save;
+    byId('cancel').onclick=cancel;
+  }
 
-  byId('add-weather').onclick=function(){addRow(0)};
-  byId('add-time').onclick=function(){addRow(1)};
-  byId('add-date').onclick=function(){addRow(2)};
-  byId('add-weekday').onclick=function(){addRow(3)};
-  byId('add-battery').onclick=function(){addRow(4)};
-  byId('add-bg').onclick=function(){addRow(5)};
-  byId('add-steps').onclick=function(){addRow(6)};
-
-  byId('save').onclick=save;
-  byId('cancel').onclick=cancel;
+  document.addEventListener('DOMContentLoaded', init);
 })();

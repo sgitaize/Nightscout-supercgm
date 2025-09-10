@@ -9,15 +9,22 @@
     "uuid": "b8c0b2a6-2a7a-4d9e-8a1a-3f4c7b4a9e10",
   "sdkVersion": "3",
     "projectType": "native",
-    "enableMultiJS": false,
+  "enableMultiJS": true,
     "resources": {
       "media": [
         {
           "type": "font",
-          "name": "FONT_DSEG_42",
+          "name": "FONT_DSEG_30_BOLD",
+          "file": "fonts/DSEG14Classic-Bold.ttf",
+          "size": 30,
+          "characterRegex": "[0-9A-Z:%/ °F-]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DSEG_30_REG",
           "file": "fonts/DSEG14Classic-Regular.ttf",
-          "size": 42,
-                "characterRegex": "[0-9A-Z:%/ °F-]"
+          "size": 30,
+          "characterRegex": "[0-9A-Z:%/ °F-]"
         }
       ]
     },

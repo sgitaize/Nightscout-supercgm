@@ -12,15 +12,89 @@
 
     <section>
       <h2>Rows</h2>
-      <p>Arrange and style the 5 rows. Drag to reorder.</p>
-      <ul id="rows" class="rows"></ul>
-      <button id="add-weather">Add Weather</button>
-      <button id="add-time">Add Time</button>
-      <button id="add-date">Add Date</button>
-      <button id="add-weekday">Add Weekday</button>
-      <button id="add-battery">Add Battery</button>
-      <button id="add-bg">Add Nightscout BG</button>
-      <button id="add-steps">Add Steps</button>
+      <p>Choose a type and color for each row.</p>
+      <div id="rows-form" class="rows-form">
+        <div class="rowline">
+          <label>Row 1
+            <select class="row-type" data-index="0"></select>
+          </label>
+          <label>Color
+            <input class="row-color" type="color" data-index="0" value="#00ffff">
+            <select class="row-color-fallback" data-index="0" hidden>
+              <option value="#00ffff">Cyan</option>
+              <option value="#ffffff">White</option>
+              <option value="#aaaaaa">Light Gray</option>
+              <option value="#00ff00">Green</option>
+              <option value="#ff0000">Red</option>
+              <option value="#ffff00">Yellow</option>
+            </select>
+          </label>
+        </div>
+        <div class="rowline">
+          <label>Row 2
+            <select class="row-type" data-index="1"></select>
+          </label>
+          <label>Color
+            <input class="row-color" type="color" data-index="1" value="#ffffff">
+            <select class="row-color-fallback" data-index="1" hidden>
+              <option value="#00ffff">Cyan</option>
+              <option value="#ffffff">White</option>
+              <option value="#aaaaaa">Light Gray</option>
+              <option value="#00ff00">Green</option>
+              <option value="#ff0000">Red</option>
+              <option value="#ffff00">Yellow</option>
+            </select>
+          </label>
+        </div>
+        <div class="rowline">
+          <label>Row 3
+            <select class="row-type" data-index="2"></select>
+          </label>
+          <label>Color
+            <input class="row-color" type="color" data-index="2" value="#aaaaaa">
+            <select class="row-color-fallback" data-index="2" hidden>
+              <option value="#00ffff">Cyan</option>
+              <option value="#ffffff">White</option>
+              <option value="#aaaaaa">Light Gray</option>
+              <option value="#00ff00">Green</option>
+              <option value="#ff0000">Red</option>
+              <option value="#ffff00">Yellow</option>
+            </select>
+          </label>
+        </div>
+        <div class="rowline">
+          <label>Row 4
+            <select class="row-type" data-index="3"></select>
+          </label>
+          <label>Color
+            <input class="row-color" type="color" data-index="3" value="#aaaaaa">
+            <select class="row-color-fallback" data-index="3" hidden>
+              <option value="#00ffff">Cyan</option>
+              <option value="#ffffff">White</option>
+              <option value="#aaaaaa">Light Gray</option>
+              <option value="#00ff00">Green</option>
+              <option value="#ff0000">Red</option>
+              <option value="#ffff00">Yellow</option>
+            </select>
+          </label>
+        </div>
+        <div class="rowline">
+          <label>Row 5
+            <select class="row-type" data-index="4"></select>
+          </label>
+          <label>Color
+            <input class="row-color" type="color" data-index="4" value="#00ff00">
+            <select class="row-color-fallback" data-index="4" hidden>
+              <option value="#00ffff">Cyan</option>
+              <option value="#ffffff">White</option>
+              <option value="#aaaaaa">Light Gray</option>
+              <option value="#00ff00">Green</option>
+              <option value="#ff0000">Red</option>
+              <option value="#ffff00">Yellow</option>
+            </select>
+          </label>
+        </div>
+      </div>
     </section>
 
     <section>
@@ -42,14 +116,14 @@
         <label><input type="radio" name="tempunit" value="F"> °F</label>
       </div>
       <div>
-        Weather refresh (min):
-        <input type="number" id="weatherInt" value="30" min="5" max="180">
+  Weather refresh (min):
+  <input type="number" id="weatherInt" value="30" min="5" max="180" inputmode="numeric">
       </div>
     </section>
 
-    <section>
+  <section id="bg-section">
       <h2>Nightscout</h2>
-      <label>Nightscout URL <input type="url" id="bgUrl" placeholder="https://myns.herokuapp.com"></label>
+  <label>Nightscout URL <input type="url" id="bgUrl" placeholder="https://myns.example.com"></label>
       <label>Timeout (min) <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
       <div>
         CGM Einheit:
@@ -61,10 +135,49 @@
         <label>High <input type="number" id="high" value="180"></label>
       </div>
       <div class="colors">
-        <label>Color Low <input type="color" id="colLow" value="#ff0000"></label>
-        <label>Color In-range <input type="color" id="colIn" value="#00ff00"></label>
-        <label>Color High <input type="color" id="colHigh" value="#ffff00"></label>
-        <label>Ghost Color <input type="color" id="ghost" value="#333333"></label>
+        <label>Color Low
+          <input type="color" id="colLow" value="#ff0000">
+          <select id="colLowFallback" hidden>
+            <option value="#ff0000">Red</option>
+            <option value="#ffff00">Yellow</option>
+            <option value="#00ff00">Green</option>
+            <option value="#00ffff">Cyan</option>
+            <option value="#ffffff">White</option>
+            <option value="#aaaaaa">Light Gray</option>
+          </select>
+        </label>
+        <label>Color In-range
+          <input type="color" id="colIn" value="#00ff00">
+          <select id="colInFallback" hidden>
+            <option value="#00ff00">Green</option>
+            <option value="#ffff00">Yellow</option>
+            <option value="#ff0000">Red</option>
+            <option value="#00ffff">Cyan</option>
+            <option value="#ffffff">White</option>
+            <option value="#aaaaaa">Light Gray</option>
+          </select>
+        </label>
+        <label>Color High
+          <input type="color" id="colHigh" value="#ffff00">
+          <select id="colHighFallback" hidden>
+            <option value="#ffff00">Yellow</option>
+            <option value="#ff0000">Red</option>
+            <option value="#00ff00">Green</option>
+            <option value="#00ffff">Cyan</option>
+            <option value="#ffffff">White</option>
+            <option value="#aaaaaa">Light Gray</option>
+          </select>
+        </label>
+        <label>Ghost Color
+          <input type="color" id="ghost" value="#2a2a2a">
+          <select id="ghostFallback" hidden>
+            <option value="#1f1f1f">Very Dark Gray</option>
+            <option value="#2a2a2a">Darker Gray</option>
+            <option value="#333333">Dark Gray</option>
+            <option value="#555555">Mid Gray</option>
+            <option value="#777777">Light Gray</option>
+          </select>
+        </label>
       </div>
     </section>
 
