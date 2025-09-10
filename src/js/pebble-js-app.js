@@ -15,15 +15,15 @@ var keys = require('message_keys');
     colors: {
       low: '#FF0000',
       high: '#FFFF00',
-      in: '#00FF00',
-      ghost: '#333333'
+    in: '#00FF00',
+  ghost: '#2a2a2a'
     },
     rows: [
-      { type: 1, color: '#FFFFFF' },
-      { type: 5, color: '#FFFFFF' },
-      { type: 2, color: '#FFFFFF' },
-      { type: 3, color: '#FFFFFF' },
-      { type: 4, color: '#FFFFFF' }
+      { type: 0, color: '#00FFFF' }, // Weather
+      { type: 1, color: '#FFFFFF' }, // Time
+      { type: 2, color: '#AAAAAA' }, // Date
+      { type: 3, color: '#AAAAAA' }, // Weekday
+      { type: 5, color: '#00FF00' }  // CGM
     ],
     showLeadingZero: true,
     dateFormat: 0,
@@ -41,26 +41,39 @@ var keys = require('message_keys');
   }
 
   function sendConfig() {
-    var dict = {
+    // Break into smaller messages for reliability on some phones
+    function send(dict, cb) {
+      Pebble.sendAppMessage(toKeyed(dict), function(){ if (cb) cb(); }, function(){
+        // one retry
+        Pebble.sendAppMessage(toKeyed(dict), function(){ if (cb) cb(); }, function(){ if (cb) cb(); });
+      });
+    }
+    // 1) Rows types/colors
+    var rowsDict = {};
+    for (var i=0; i<5; i++) {
+      rowsDict['ROW' + (i+1) + '_TYPE'] = config.rows[i].type;
+      rowsDict['ROW' + (i+1) + '_COLOR'] = hexToInt(config.rows[i].color);
+    }
+    // 2) Colors and thresholds
+    var colorsDict = {
+      'COLOR_LOW': hexToInt(config.colors.low),
+      'COLOR_HIGH': hexToInt(config.colors.high),
+      'COLOR_IN_RANGE': hexToInt(config.colors.in),
+      'GHOST_COLOR': hexToInt(config.colors.ghost),
+      'BG_THRESH_LOW': config.low,
+      'BG_THRESH_HIGH': config.high
+    };
+    // 3) Basics
+    var basicDict = {
       'SHOW_LEADING_ZERO': config.showLeadingZero ? 1 : 0,
       'DATE_FORMAT': config.dateFormat,
       'WEEKDAY_LANG': config.weekdayLang,
-  'TEMP_UNIT': config.tempUnit === 'F' ? 1 : 0,
-  'WEATHER_INTERVAL_MIN': config.weatherIntervalMin,
+      'TEMP_UNIT': config.tempUnit === 'F' ? 1 : 0,
+      'WEATHER_INTERVAL_MIN': config.weatherIntervalMin,
       'BG_TIMEOUT_MIN': config.bgTimeoutMin,
-      'BG_THRESH_LOW': config.low,
-      'BG_THRESH_HIGH': config.high,
-  'BG_UNIT': config.bgUnit === 'mmol' ? 1 : 0,
-      'COLOR_LOW': hexToInt(config.colors.low),
-      'COLOR_HIGH': hexToInt(config.colors.high),
-  'COLOR_IN_RANGE': hexToInt(config.colors.in),
-  'GHOST_COLOR': hexToInt(config.colors.ghost)
+      'BG_UNIT': config.bgUnit === 'mmol' ? 1 : 0
     };
-    for (var i=0; i<5; i++) {
-      dict['ROW' + (i+1) + '_TYPE'] = config.rows[i].type;
-      dict['ROW' + (i+1) + '_COLOR'] = hexToInt(config.rows[i].color);
-    }
-    Pebble.sendAppMessage(toKeyed(dict));
+    send(rowsDict, function(){ send(colorsDict, function(){ send(basicDict); }); });
   }
 
   function fetchWeather() {
@@ -95,6 +108,18 @@ var keys = require('message_keys');
     weatherTimer = setInterval(fetchWeather, ms);
   }
 
+  function scheduleBG() {
+    // Fetch immediately, then every 5 minutes if BG is configured in any row and URL exists
+    var anyBG = config.rows && config.rows.some(function(r){return r.type === 5;});
+    if (anyBG && config.bgUrl) {
+      fetchBG();
+      if (typeof scheduleBG._timer !== 'undefined' && scheduleBG._timer) clearInterval(scheduleBG._timer);
+      scheduleBG._timer = setInterval(fetchBG, 5 * 60 * 1000);
+    } else {
+      if (scheduleBG._timer) { clearInterval(scheduleBG._timer); scheduleBG._timer = null; }
+    }
+  }
+
   function fetchBG() {
     if (!config.bgUrl) {
       Pebble.sendAppMessage(toKeyed({ 'BG_STATUS': 1 })); // NO-BG
@@ -105,15 +130,20 @@ var keys = require('message_keys');
     req.onload = function() {
       try {
         var json = JSON.parse(this.responseText);
-        // responses can vary; try to find sgv
+        // responses can vary; handle Nightscout /pebble (json.bgs[0]) and others
         var sgv = null, ts = null, trend = null;
-        if (Array.isArray(json) && json.length > 0) {
+        if (json && Array.isArray(json.bgs) && json.bgs.length > 0) {
+          var b = json.bgs[0];
+          sgv = parseInt(b.sgv || b.glucose || b.value, 10);
+          ts = parseInt((b.datetime || b.date || b.mills || b.timestamp || 0), 10);
+          trend = b.direction || b.trend || null;
+        } else if (Array.isArray(json) && json.length > 0) {
           sgv = parseInt(json[0].sgv || json[0].glucose || json[0].value, 10);
-          ts = parseInt((json[0].date || json[0].mills || json[0].timestamp || 0), 10);
+          ts = parseInt((json[0].datetime || json[0].date || json[0].mills || json[0].timestamp || 0), 10);
           trend = json[0].direction || json[0].trend || null;
-        } else if (json && json.sgv) {
-          sgv = parseInt(json.sgv, 10);
-          ts = parseInt(json.date || json.mills || json.timestamp || 0, 10);
+        } else if (json && (json.sgv || json.value || json.glucose)) {
+          sgv = parseInt(json.sgv || json.value || json.glucose, 10);
+          ts = parseInt(json.datetime || json.date || json.mills || json.timestamp || 0, 10);
           trend = json.direction || json.trend || null;
         }
         if (ts && ts > 1000000000000) { // ms -> s
@@ -149,6 +179,7 @@ var keys = require('message_keys');
   Pebble.addEventListener('ready', function() {
     sendConfig();
   scheduleWeather();
+  scheduleBG();
   });
 
   Pebble.addEventListener('appmessage', function(e) {
@@ -171,6 +202,7 @@ var keys = require('message_keys');
       config = JSON.parse(decodeURIComponent(e.response));
       sendConfig();
   scheduleWeather();
+  scheduleBG();
     } catch(err) {
       console.log('config parse error', err);
     }
