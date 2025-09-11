@@ -11,6 +11,26 @@
     { id: 6, name: 'Steps' }
   ];
 
+
+  // Farbauswahl für Fallback-Selects und Legende
+  var colorOptions = [
+    { hex: '#00ffff', name: 'Cyan' },
+    { hex: '#ffffff', name: 'Weiß' },
+    { hex: '#aaaaaa', name: 'Hellgrau' },
+    { hex: '#00ff00', name: 'Grün' },
+    { hex: '#ff0000', name: 'Rot' },
+    { hex: '#ffff00', name: 'Gelb' },
+    { hex: '#0000ff', name: 'Blau' },
+    { hex: '#ff9900', name: 'Orange' },
+    { hex: '#ff00ff', name: 'Pink' },
+    { hex: '#8000ff', name: 'Lila' },
+    { hex: '#555555', name: 'Dunkelgrau' },
+    { hex: '#000000', name: 'Schwarz' },
+    { hex: '#8B4513', name: 'Braun' },
+    { hex: '#40e0d0', name: 'Türkis' },
+    { hex: '#bfff00', name: 'Limette' }
+  ];
+
   var defaultRows = [
     { type: 0, color: '#00ffff' },
     { type: 1, color: '#ffffff' },
@@ -42,6 +62,16 @@
     var colorInputs = form.querySelectorAll('input.row-color');
     var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
     var useFallback = !supportsColorInput();
+    colorFallbacks.forEach(function(sel, idx){
+      sel.innerHTML = '';
+      colorOptions.forEach(function(opt){
+        var o = document.createElement('option');
+        o.value = opt.hex;
+        o.textContent = opt.name + ' (' + opt.hex + ')';
+        sel.appendChild(o);
+      });
+      sel.value = defaultRows[idx].color;
+    });
     colorInputs.forEach(function(inp, idx){
       inp.value = defaultRows[idx].color;
       if (useFallback) { inp.hidden = true; colorFallbacks[idx].hidden = false; colorFallbacks[idx].value = defaultRows[idx].color; }
@@ -83,7 +113,8 @@
       dateFormat: parseInt(document.querySelector('input[name="datefmt"]:checked').value,10),
       weekdayLang: parseInt(document.querySelector('input[name="wdlang"]:checked').value,10),
       tempUnit: document.querySelector('input[name="tempunit"]:checked').value,
-      weatherIntervalMin: parseInt(byId('weatherInt').value,10),
+  weatherIntervalMin: parseInt(byId('weatherInt').value,10),
+  bgFetchIntervalMin: parseInt(byId('bgFetchInt').value,10),
       bgUrl: byId('bgUrl').value.trim(),
       bgTimeoutMin: parseInt(byId('bgTimeout').value,10),
       bgUnit: document.querySelector('input[name="bgunit"]:checked').value,
@@ -123,7 +154,8 @@
         document.querySelector('input[name="tempunit"][value="'+(cfg.tempUnit||'C')+'"]').checked = true;
         byId('weatherInt').value = cfg.weatherIntervalMin || 30;
         byId('bgUrl').value = cfg.bgUrl || '';
-        byId('bgTimeout').value = cfg.bgTimeoutMin || 20;
+  byId('bgTimeout').value = cfg.bgTimeoutMin || 20;
+  byId('bgFetchInt').value = cfg.bgFetchIntervalMin || 5;
         document.querySelector('input[name="bgunit"][value="'+(cfg.bgUnit||'mgdl')+'"]').checked = true;
         byId('low').value = cfg.low || 80;
         byId('high').value = cfg.high || 180;

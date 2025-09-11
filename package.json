@@ -10,6 +10,7 @@
   "sdkVersion": "3",
     "projectType": "native",
   "enableMultiJS": true,
+  "screenshot": "resources/screenshot/screenshotsupercgm.png",
     "resources": {
       "media": [
         {
@@ -33,20 +34,20 @@
       "ROW1_COLOR", "ROW2_COLOR", "ROW3_COLOR", "ROW4_COLOR", "ROW5_COLOR",
       "GHOST_COLOR",
       "SHOW_LEADING_ZERO",
-  "DATE_FORMAT", "WEEKDAY_LANG", "TEMP_UNIT",
-      "BG_URL", "BG_TIMEOUT_MIN", "BG_THRESH_LOW", "BG_THRESH_HIGH",
-  "WEATHER_INTERVAL_MIN",
+      "DATE_FORMAT", "WEEKDAY_LANG", "TEMP_UNIT",
+  "BG_URL", "BG_TIMEOUT_MIN", "BG_FETCH_INTERVAL_MIN", "BG_THRESH_LOW", "BG_THRESH_HIGH",
+      "WEATHER_INTERVAL_MIN",
       "COLOR_LOW", "COLOR_HIGH", "COLOR_IN_RANGE",
       "REQUEST_WEATHER", "REQUEST_BG",
-  "WEATHER_TEMP",
-  "BG_SGV", "BG_TIMESTAMP", "BG_STATUS", "BG_UNIT", "BG_TREND"
+      "WEATHER_TEMP",
+      "BG_SGV", "BG_TIMESTAMP", "BG_STATUS", "BG_UNIT", "BG_TREND"
     ],
     "capabilities": [
       "configurable",
       "location",
       "health"
     ],
-    "watchapp": {
+  "watchapp": {
       "watchface": true
     },
   "targetPlatforms": ["basalt"]
