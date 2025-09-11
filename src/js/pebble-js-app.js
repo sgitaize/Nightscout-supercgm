@@ -12,6 +12,7 @@ var keys = require('message_keys');
   tempUnit: 'C',
   weatherIntervalMin: 30,
   bgUnit: 'mgdl',
+  bgFetchIntervalMin: 5,
     colors: {
       low: '#FF0000',
       high: '#FFFF00',
@@ -114,7 +115,8 @@ var keys = require('message_keys');
     if (anyBG && config.bgUrl) {
       fetchBG();
       if (typeof scheduleBG._timer !== 'undefined' && scheduleBG._timer) clearInterval(scheduleBG._timer);
-      scheduleBG._timer = setInterval(fetchBG, 5 * 60 * 1000);
+      var mins = Math.max(1, parseInt(config.bgFetchIntervalMin || 5, 10));
+      scheduleBG._timer = setInterval(fetchBG, mins * 60 * 1000);
     } else {
       if (scheduleBG._timer) { clearInterval(scheduleBG._timer); scheduleBG._timer = null; }
     }
@@ -176,10 +178,25 @@ var keys = require('message_keys');
     req.send();
   }
 
+  function loadSavedConfig() {
+    try {
+      var saved = localStorage.getItem('supercgm_config');
+      if (saved) {
+        var cfg = JSON.parse(saved);
+        // Basic sanity: ensure rows exist
+        if (cfg && Array.isArray(cfg.rows) && cfg.rows.length === 5) {
+          config = cfg;
+        }
+      }
+    } catch(e) {}
+  }
+
   Pebble.addEventListener('ready', function() {
+    // Load saved config if available so we don't overwrite watch with defaults
+    loadSavedConfig();
     sendConfig();
-  scheduleWeather();
-  scheduleBG();
+    scheduleWeather();
+    scheduleBG();
   });
 
   Pebble.addEventListener('appmessage', function(e) {
@@ -200,9 +217,11 @@ var keys = require('message_keys');
     if (!e || !e.response) { return; }
     try {
       config = JSON.parse(decodeURIComponent(e.response));
+      // Persist to pkjs storage so it survives app restarts
+      try { localStorage.setItem('supercgm_config', JSON.stringify(config)); } catch(_e) {}
       sendConfig();
-  scheduleWeather();
-  scheduleBG();
+      scheduleWeather();
+      scheduleBG();
     } catch(err) {
       console.log('config parse error', err);
     }

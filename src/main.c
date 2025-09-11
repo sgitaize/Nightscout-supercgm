@@ -367,7 +367,7 @@ static void update_time(void) {
   draw_all_rows();
   // ask for updates
   request_weather();
-  request_bg();
+  // BG fetching is scheduled on the phone side at a configurable interval
 }
 
 // Messaging
@@ -483,6 +483,8 @@ static void request_bg(void) {
 }
 
 static void main_window_load(Window *window) {
+  // Stelle sicher, dass die gespeicherte Konfiguration geladen wird
+  load_config_cache();
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
@@ -563,9 +565,14 @@ static void init_defaults(void) {
   s_col_in_hex = 0x00FF00; s_col_in = ColorFromHex(s_col_in_hex);
 }
 
+
 static void init(void) {
-  init_defaults();
-  load_config_cache();
+  // Nur Defaults setzen, wenn keine persistierte Konfiguration existiert
+  if (!persist_exists(PERSIST_CONFIG_KEY)) {
+    init_defaults();
+  } else {
+    load_config_cache();
+  }
 
   // Load fonts before creating/pushing window so layers can use them in load()
   s_font_dseg_30 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DSEG_30_BOLD));
@@ -631,10 +638,10 @@ static void save_config_cache(void) {
 }
 
 static void load_config_cache(void) {
-  if (!persist_exists(PERSIST_CONFIG_KEY)) return;
+  if (!persist_exists(PERSIST_CONFIG_KEY)) { init_defaults(); return; }
   ConfigCache cc;
-  if (persist_read_data(PERSIST_CONFIG_KEY, &cc, sizeof(cc)) != (int)sizeof(cc)) return;
-  if (cc.version != 1) return;
+  if (persist_read_data(PERSIST_CONFIG_KEY, &cc, sizeof(cc)) != (int)sizeof(cc)) { init_defaults(); return; }
+  if (cc.version != 1) { init_defaults(); return; }
   for (int i=0;i<ROWS;i++) { s_row_types[i] = cc.row_types[i]; s_row_color_hex[i] = cc.row_color_hex[i]; s_row_colors[i] = ColorFromHex(s_row_color_hex[i]); }
   s_ghost_hex = cc.ghost_hex; s_ghost_color = ColorFromHex(s_ghost_hex);
   s_show_leading_zero = cc.show_leading_zero != 0;

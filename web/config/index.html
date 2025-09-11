@@ -124,7 +124,8 @@
   <section id="bg-section">
       <h2>Nightscout</h2>
   <label>Nightscout URL <input type="url" id="bgUrl" placeholder="https://myns.example.com"></label>
-      <label>Timeout (min) <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
+  <label>Timeout (min) <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
+  <label>BG Refresh (min) <input type="number" id="bgFetchInt" value="5" min="1" max="180" inputmode="numeric"></label>
       <div>
         CGM Einheit:
         <label><input type="radio" name="bgunit" value="mgdl" checked> mg/dL</label>
@@ -178,13 +179,35 @@
             <option value="#777777">Light Gray</option>
           </select>
         </label>
-      </div>
+	  </div>
     </section>
 
     <div class="actions">
       <button id="save">Save</button>
       <button id="cancel" class="secondary">Cancel</button>
     </div>
+
+    <section id="color-legend">
+      <h2>Farblegende</h2>
+      <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:.5rem;">
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#00ffff;border-radius:4px;margin-right:.5em;"></span>Cyan (#00ffff)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ffffff;border-radius:4px;margin-right:.5em;border:1px solid #ccc;"></span>Weiß (#ffffff)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#aaaaaa;border-radius:4px;margin-right:.5em;"></span>Hellgrau (#aaaaaa)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#00ff00;border-radius:4px;margin-right:.5em;"></span>Grün (#00ff00)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ff0000;border-radius:4px;margin-right:.5em;"></span>Rot (#ff0000)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ffff00;border-radius:4px;margin-right:.5em;"></span>Gelb (#ffff00)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#0000ff;border-radius:4px;margin-right:.5em;"></span>Blau (#0000ff)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ff9900;border-radius:4px;margin-right:.5em;"></span>Orange (#ff9900)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ff00ff;border-radius:4px;margin-right:.5em;"></span>Pink (#ff00ff)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#8000ff;border-radius:4px;margin-right:.5em;"></span>Lila (#8000ff)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#555555;border-radius:4px;margin-right:.5em;"></span>Dunkelgrau (#555555)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#000000;border-radius:4px;margin-right:.5em;border:1px solid #ccc;"></span>Schwarz (#000000)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#8B4513;border-radius:4px;margin-right:.5em;"></span>Braun (#8B4513)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#40e0d0;border-radius:4px;margin-right:.5em;"></span>Türkis (#40e0d0)</li>
+        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#bfff00;border-radius:4px;margin-right:.5em;"></span>Limette (#bfff00)</li>
+      </ul>
+    </section>
+
   </div>
 
   <script src="script.js"></script>
