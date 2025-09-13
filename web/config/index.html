@@ -106,9 +106,9 @@
         <label><input type="radio" name="datefmt" value="1"> mm/dd</label>
       </div>
       <div>
-        Weekday language:
-        <label><input type="radio" name="wdlang" value="0" checked> German</label>
-        <label><input type="radio" name="wdlang" value="1"> English</label>
+  Weekday language:
+  <label><input type="radio" name="wdlang" value="0" checked> German</label>
+  <label><input type="radio" name="wdlang" value="1"> English</label>
       </div>
       <div>
         Temperature unit:
@@ -127,7 +127,7 @@
   <label>Timeout (min) <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
   <label>BG Refresh (min) <input type="number" id="bgFetchInt" value="5" min="1" max="180" inputmode="numeric"></label>
       <div>
-        CGM Einheit:
+  CGM Unit:
         <label><input type="radio" name="bgunit" value="mgdl" checked> mg/dL</label>
         <label><input type="radio" name="bgunit" value="mmol"> mmol/L</label>
       </div>
@@ -170,13 +170,9 @@
           </select>
         </label>
         <label>Ghost Color
-          <input type="color" id="ghost" value="#2a2a2a">
+          <input type="color" id="ghost" value="#555555">
           <select id="ghostFallback" hidden>
-            <option value="#1f1f1f">Very Dark Gray</option>
-            <option value="#2a2a2a">Darker Gray</option>
-            <option value="#333333">Dark Gray</option>
-            <option value="#555555">Mid Gray</option>
-            <option value="#777777">Light Gray</option>
+            <!-- Options populated by script to Pebble-compatible grays -->
           </select>
         </label>
 	  </div>
@@ -188,28 +184,14 @@
     </div>
 
     <section id="color-legend">
-      <h2>Farblegende</h2>
-      <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:.5rem;">
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#00ffff;border-radius:4px;margin-right:.5em;"></span>Cyan (#00ffff)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ffffff;border-radius:4px;margin-right:.5em;border:1px solid #ccc;"></span>Weiß (#ffffff)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#aaaaaa;border-radius:4px;margin-right:.5em;"></span>Hellgrau (#aaaaaa)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#00ff00;border-radius:4px;margin-right:.5em;"></span>Grün (#00ff00)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ff0000;border-radius:4px;margin-right:.5em;"></span>Rot (#ff0000)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ffff00;border-radius:4px;margin-right:.5em;"></span>Gelb (#ffff00)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#0000ff;border-radius:4px;margin-right:.5em;"></span>Blau (#0000ff)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ff9900;border-radius:4px;margin-right:.5em;"></span>Orange (#ff9900)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#ff00ff;border-radius:4px;margin-right:.5em;"></span>Pink (#ff00ff)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#8000ff;border-radius:4px;margin-right:.5em;"></span>Lila (#8000ff)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#555555;border-radius:4px;margin-right:.5em;"></span>Dunkelgrau (#555555)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#000000;border-radius:4px;margin-right:.5em;border:1px solid #ccc;"></span>Schwarz (#000000)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#8B4513;border-radius:4px;margin-right:.5em;"></span>Braun (#8B4513)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#40e0d0;border-radius:4px;margin-right:.5em;"></span>Türkis (#40e0d0)</li>
-        <li><span style="display:inline-block;width:1.5em;height:1.5em;background:#bfff00;border-radius:4px;margin-right:.5em;"></span>Limette (#bfff00)</li>
-      </ul>
+      <h2>Color Legend</h2>
+      <ul id="color-legend-list" style="list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:.5rem;"></ul>
     </section>
 
   </div>
 
   <script src="script.js"></script>
+  <!-- Palette swatches for native color inputs -->
+  <datalist id="palette-list"></datalist>
 </body>
 </html>

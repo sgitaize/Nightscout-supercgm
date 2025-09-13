@@ -1,26 +1,53 @@
 # supercgm-ns
 
-A Pebble SDK 4.x watchface with five flexible rows using the DSEG14Classic font. Rows can be reordered and colored via a configuration webpage. Supports: Weather, Time, Date, Weekday, Battery, Nightscout BG, and Steps.
+Flexible Pebble watchface for CGM + weather with a 5-slot grid per row. Highly configurable colors and rows. Works on color and black-and-white devices, including Round.
 
-## Font placement
-Place the font file at:
-- `resources/fonts/DSEG14Classic-Regular.ttf` (already referenced)
+## Features
+- Rows (per row choose one): Weather, Time, Date, Weekday, Battery, Nightscout BG, Steps
+- Color customization per row, plus in-range/high/low BG colors and ghost grid color
+- Phone-side background fetch for BG (interval configurable)
+- Weather via Open-Meteo (no API key) with unit selection (°C/°F)
+- Persistence on watch and phone (survives restarts)
+- Platform-aware layout:
+  - Rectangular (Aplite/Diorite/Basalt/Time): 5 rows
+  - Round (Chalk): 4 rows with tighter vertical spacing; top/bottom show 4 digits
 
-The project expects size 42 to render cleanly; adjust if needed by changing the target font or row height.
-
-## Build and install
-- Requires Pebble SDK 4.5 (Rebble SDK). Use `pebble build` and `pebble install --phone <ip>`.
+## Platforms
+- Color: Basalt (Pebble Time), Chalk (Round)
+- B/W: Aplite (Pebble/Pebble Steel), Diorite (Pebble 2)
 
 ## Configuration
-- Config page opens from the Pebble app. We set `"capabilities": ["configurable"]` in `package.json` so PebbleJS exposes the configuration events.
-- Config-URL ist aktuell: `http://supercgm-config.aize-it.de/config/index.html`. Du kannst die Seite auch selbst hosten und die URL in `src/js/pebble-js-app.js` anpassen.
+- Open the watchface settings from the Pebble/Rebble phone app.
+- The page adapts to platform (rows count, BW palette). All labels are English.
 
-## Nightscout
-- Enter your base Nightscout URL; the app will request `<URL>/pebble`.
-- If no value is returned, the BG row shows `NO-BG`.
-- If older than the configured timeout, shows `NoCon`.
-- Colors: low (< low threshold) red, high (> high threshold) yellow, otherwise green. All configurable.
+### Nightscout
+- Enter your base Nightscout URL; the app requests `<URL>` without /pebble.
+- No BG -> shows `NO-BG`; stale -> `NOCON`.
+- Trend arrows are drawn natively (↑, ↗, →, ↘, ↓ and double variants).
 
-## Notes
-- Weather uses Open-Meteo (no API key) and requires location permission.
-- Weekday in German uses custom triplets: SON, MON, DIE, MIT, DON, FRE, SAM.
+## Build and Install
+Prereqs: Rebble SDK (Pebble SDK 4.x) installed and `pebble` CLI available.
+
+Quick start:
+
+1) Build the app bundle
+	- Run in project root:
+	  - `pebble build`
+
+2) Install to phone (replace IP with your phone IP from the Pebble app)
+	- `pebble install --phone <PHONE_IP>`
+
+3) Install to emulator
+	- Round: `pebble install --emulator chalk`
+	- BW: `pebble install --emulator diorite`
+
+Troubleshooting:
+- If logs fail to connect, ensure the emulator is running or phone is reachable.
+- If fonts clip, rebuild and restart the watchface.
+
+## Development tips
+- App keys are generated from `package.json` (see `pebble.messageKeys`).
+- Phone code lives in `src/js/pebble-js-app.js`.
+- Watch C code lives in `src/main.c`.
+- Web config is under `web/config/`.
+- After changing config fields or resources, rebuild (`pebble build`).

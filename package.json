@@ -1,6 +1,6 @@
 {
-  "name": "supercgm-ns",
-  "version": "0.1.0",
+  "name": "Nightscout Supercgm",
+  "version": "1.2",
   "description": "Watchface with 5 flexible rows: time, date, weekday, battery, weather, Nightscout BG, steps.",
   "author": "sgitaize",
   "license": "MIT",
@@ -26,6 +26,48 @@
           "file": "fonts/DSEG14Classic-Regular.ttf",
           "size": 30,
           "characterRegex": "[0-9A-Z:%/ °F-]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DSEG_29_BOLD",
+          "file": "fonts/DSEG14Classic-Bold.ttf",
+          "size": 29,
+          "characterRegex": "[0-9A-Z:%/ °F-]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DSEG_29_REG",
+          "file": "fonts/DSEG14Classic-Regular.ttf",
+          "size": 29,
+          "characterRegex": "[0-9A-Z:%/ °F-]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DSEG_25_BOLD",
+          "file": "fonts/DSEG14Classic-Bold.ttf",
+          "size": 25,
+          "characterRegex": "[0-9A-Z:%/ °F-]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DSEG_25_REG",
+          "file": "fonts/DSEG14Classic-Regular.ttf",
+          "size": 25,
+          "characterRegex": "[0-9A-Z:%/ °F-]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DSEG_26_BOLD",
+          "file": "fonts/DSEG14Classic-Bold.ttf",
+          "size": 26,
+          "characterRegex": "[0-9A-Z:%/ °F-]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DSEG_26_REG",
+          "file": "fonts/DSEG14Classic-Regular.ttf",
+          "size": 26,
+          "characterRegex": "[0-9A-Z:%/ °F-]"
         }
       ]
     },
@@ -50,6 +92,6 @@
   "watchapp": {
       "watchface": true
     },
-  "targetPlatforms": ["basalt"]
+  "targetPlatforms": ["aplite","basalt","chalk","diorite"]
   }
 }
