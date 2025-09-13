@@ -16,8 +16,8 @@ var keys = require('message_keys');
     colors: {
       low: '#FF0000',
       high: '#FFFF00',
-    in: '#00FF00',
-  ghost: '#2a2a2a'
+      in: '#00FF00',
+      ghost: '#555555' // Pebble Time: darkest non-black gray that's reliably visible
     },
     rows: [
       { type: 0, color: '#00FFFF' }, // Weather
@@ -33,6 +33,26 @@ var keys = require('message_keys');
 
   function hexToInt(hex) {
     return parseInt(hex.replace('#',''), 16);
+  }
+
+  function quantize(hex) {
+    var palette = ['#000000','#555555','#AAAAAA','#FFFFFF','#FF0000','#FFFF00','#00FF00','#00FFFF','#0000FF','#FF00FF','#FF9900','#8000FF'];
+    hex = (hex||'').toUpperCase();
+    if (palette.indexOf(hex) >= 0) return hex;
+    try {
+      var r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
+      if (Math.abs(r-g)<16 && Math.abs(g-b)<16) {
+        var l=(r+g+b)/3; if(l<32) return '#000000'; if(l<72) return '#555555'; if(l<160) return '#AAAAAA'; return '#FFFFFF';
+      }
+      if (r>200 && g<80 && b<80) return '#FF0000';
+      if (r<80 && g>200 && b<80) return '#00FF00';
+      if (r<80 && g<80 && b>200) return '#0000FF';
+      if (r>200 && g>200 && b<80) return '#FFFF00';
+      if (r<80 && g>200 && b>200) return '#00FFFF';
+      if (r>200 && g<80 && b>200) return '#FF00FF';
+      if (r>200 && g>120 && b<40) return '#FF9900';
+    } catch(e) {}
+    return '#FFFFFF';
   }
 
   function toKeyed(dict) {
@@ -53,14 +73,14 @@ var keys = require('message_keys');
     var rowsDict = {};
     for (var i=0; i<5; i++) {
       rowsDict['ROW' + (i+1) + '_TYPE'] = config.rows[i].type;
-      rowsDict['ROW' + (i+1) + '_COLOR'] = hexToInt(config.rows[i].color);
+  rowsDict['ROW' + (i+1) + '_COLOR'] = hexToInt(quantize(config.rows[i].color));
     }
     // 2) Colors and thresholds
     var colorsDict = {
-      'COLOR_LOW': hexToInt(config.colors.low),
-      'COLOR_HIGH': hexToInt(config.colors.high),
-      'COLOR_IN_RANGE': hexToInt(config.colors.in),
-      'GHOST_COLOR': hexToInt(config.colors.ghost),
+  'COLOR_LOW': hexToInt(quantize(config.colors.low)),
+  'COLOR_HIGH': hexToInt(quantize(config.colors.high)),
+  'COLOR_IN_RANGE': hexToInt(quantize(config.colors.in)),
+  'GHOST_COLOR': hexToInt(quantize(config.colors.ghost)),
       'BG_THRESH_LOW': config.low,
       'BG_THRESH_HIGH': config.high
     };
@@ -77,27 +97,94 @@ var keys = require('message_keys');
     send(rowsDict, function(){ send(colorsDict, function(){ send(basicDict); }); });
   }
 
+  // Weather fetch with caching and throttling
+  var _lastWeather = { ts: 0, temp: null };
+  function sendWeather(temp, unit) {
+    try {
+      Pebble.sendAppMessage(toKeyed({ 'WEATHER_TEMP': temp, 'TEMP_UNIT': unit === 'F' ? 1 : 0 }));
+    } catch(e) {}
+  }
   function fetchWeather() {
-    navigator.geolocation.getCurrentPosition(function(pos) {
-      var url = config.weatherApi + '?latitude=' + pos.coords.latitude + '&longitude=' + pos.coords.longitude + '&current_weather=true';
+    var now = Date.now();
+    var unit = config.tempUnit === 'F' ? 'F' : 'C';
+    // If we have a recent value (<10 min), send it immediately to avoid '--'
+    if (_lastWeather.temp !== null && (now - _lastWeather.ts) < 10*60*1000) {
+      sendWeather(_lastWeather.temp, unit);
+    }
+    function tryOpenMeteo(lat, lon, onOk, onErr) {
+      var url = (config.weatherApi || 'https://api.open-meteo.com/v1/forecast') +
+        '?latitude=' + lat + '&longitude=' + lon + '&current_weather=true';
       var req = new XMLHttpRequest();
       req.onload = function() {
         try {
-          var json = JSON.parse(this.responseText);
-          var temp = Math.round(json.current_weather.temperature);
-          if (config.tempUnit === 'F') {
-            temp = Math.round((temp * 9/5) + 32);
-          }
-          var unit = config.tempUnit === 'F' ? 'F' : 'C';
-          Pebble.sendAppMessage(toKeyed({ 'WEATHER_TEMP': temp, 'TEMP_UNIT': unit === 'F' ? 1 : 0 }));
-        } catch(e) {}
+          var json = JSON.parse(this.responseText || '{}');
+          var cw = json.current_weather || {};
+          var t = Math.round(parseFloat(cw.temperature));
+          if (!isFinite(t)) throw new Error('no temp');
+          if (unit === 'F') t = Math.round((t * 9/5) + 32);
+          onOk(t);
+        } catch(e) { onErr('parse'); }
       };
+      req.onerror = function(){ onErr('network'); };
+      req.ontimeout = function(){ onErr('timeout'); };
       req.open('GET', url);
+      req.timeout = 10000;
       req.send();
-    }, function(err){
-      console.log('geoloc error', err);
-    }, { timeout: 10000, maximumAge: 600000 });
+    }
+    function tryWttr(lat, lon, onOk, onErr) {
+      var url = 'https://wttr.in/' + lat + ',' + lon + '?format=j1';
+      var req = new XMLHttpRequest();
+      req.onload = function() {
+        try {
+          var json = JSON.parse(this.responseText || '{}');
+          var cc = (json.current_condition && json.current_condition[0]) || {};
+          var key = (unit === 'F') ? 'temp_F' : 'temp_C';
+          var t = Math.round(parseFloat(cc[key]));
+          if (!isFinite(t)) throw new Error('no temp');
+          onOk(t);
+        } catch(e) { onErr('parse'); }
+      };
+      req.onerror = function(){ onErr('network'); };
+      req.ontimeout = function(){ onErr('timeout'); };
+      req.open('GET', url);
+      req.timeout = 10000;
+      req.send();
+    }
+    function doFetch(lat, lon) {
+      tryOpenMeteo(lat, lon, function(t){
+        _lastWeather = { ts: Date.now(), temp: t };
+        sendWeather(t, unit);
+      }, function(){
+        // fallback
+        tryWttr(lat, lon, function(t){
+          _lastWeather = { ts: Date.now(), temp: t };
+          sendWeather(t, unit);
+        }, function(){
+          if (_lastWeather.temp !== null) sendWeather(_lastWeather.temp, unit);
+        });
+      });
+    }
+    // Try geolocation; fallback to last known or a default (Berlin) if it fails
+    navigator.geolocation.getCurrentPosition(function(pos){
+      doFetch(pos.coords.latitude, pos.coords.longitude);
+    }, function(){
+      try {
+        var saved = JSON.parse(localStorage.getItem('supercgm_last_loc')||'null');
+        if (saved && saved.lat && saved.lon) {
+          doFetch(saved.lat, saved.lon);
+          return;
+        }
+      } catch(_) {}
+      // default coords (Berlin)
+      doFetch(52.5200, 13.4050);
+    }, { timeout: 8000, maximumAge: 900000 });
   }
+  // persist last location when available
+  try {
+    navigator.geolocation.getCurrentPosition(function(pos){
+      localStorage.setItem('supercgm_last_loc', JSON.stringify({lat: pos.coords.latitude, lon: pos.coords.longitude}));
+    });
+  } catch(e){}
 
   var weatherTimer = null;
   function scheduleWeather() {
@@ -107,6 +194,8 @@ var keys = require('message_keys');
     }
     var ms = Math.max(5, parseInt(config.weatherIntervalMin||30,10)) * 60 * 1000;
     weatherTimer = setInterval(fetchWeather, ms);
+  // trigger an immediate fetch as well (throttled by cache)
+  setTimeout(fetchWeather, 1000);
   }
 
   function scheduleBG() {
@@ -185,6 +274,12 @@ var keys = require('message_keys');
         var cfg = JSON.parse(saved);
         // Basic sanity: ensure rows exist
         if (cfg && Array.isArray(cfg.rows) && cfg.rows.length === 5) {
+          // Coerce too-dark ghost to mid-grey for visibility on color displays
+          if (!cfg.colors) cfg.colors = {};
+          var g = (cfg.colors.ghost || '').toLowerCase();
+          if (!g || /^#0{0,6}$/.test(g) || g === '#2a2a2a' || g === '#1e1e1e') {
+            cfg.colors.ghost = '#555555';
+          }
           config = cfg;
         }
       }
@@ -201,15 +296,25 @@ var keys = require('message_keys');
 
   Pebble.addEventListener('appmessage', function(e) {
     if (e.payload && e.payload.REQUEST_WEATHER) {
-      fetchWeather();
+  console.log('REQUEST_WEATHER received');
+  fetchWeather();
     }
     if (e.payload && e.payload.REQUEST_BG) {
-      fetchBG();
+  console.log('REQUEST_BG received');
+  fetchBG();
     }
   });
 
   Pebble.addEventListener('showConfiguration', function() {
-    var url = 'http://supercgm-config.aize-it.de/config/index.html';
+    var info = (Pebble.getActiveWatchInfo && Pebble.getActiveWatchInfo()) || {};
+    var platform = info.platform || 'basalt';
+    var isBW = (platform === 'aplite' || platform === 'diorite');
+  var isRound = (platform === 'chalk');
+  var rows = isRound ? 4 : 5;
+    var url = 'http://supercgm-config.aize-it.de/config/index.html' +
+      '?platform=' + encodeURIComponent(platform) +
+      '&bw=' + (isBW ? '1' : '0') +
+      '&rows=' + rows;
     Pebble.openURL(url);
   });
 

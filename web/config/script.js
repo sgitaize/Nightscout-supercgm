@@ -12,32 +12,74 @@
   ];
 
 
+  function getParams(){
+    try {
+      var p = new URLSearchParams(location.search);
+      return {
+        rows: Math.max(1, Math.min(5, parseInt(p.get('rows')||'5',10))),
+        bw: (p.get('bw') === '1')
+      };
+    } catch(e) { return { rows:5, bw:false }; }
+  }
+  var params = getParams();
+
   // Farbauswahl für Fallback-Selects und Legende
-  var colorOptions = [
-    { hex: '#00ffff', name: 'Cyan' },
-    { hex: '#ffffff', name: 'Weiß' },
-    { hex: '#aaaaaa', name: 'Hellgrau' },
-    { hex: '#00ff00', name: 'Grün' },
-    { hex: '#ff0000', name: 'Rot' },
-    { hex: '#ffff00', name: 'Gelb' },
-    { hex: '#0000ff', name: 'Blau' },
-    { hex: '#ff9900', name: 'Orange' },
-    { hex: '#ff00ff', name: 'Pink' },
-    { hex: '#8000ff', name: 'Lila' },
-    { hex: '#555555', name: 'Dunkelgrau' },
-    { hex: '#000000', name: 'Schwarz' },
-    { hex: '#8B4513', name: 'Braun' },
-    { hex: '#40e0d0', name: 'Türkis' },
-    { hex: '#bfff00', name: 'Limette' }
+  // Pebble color palette approximation (Basalt/Chalk are 64 colors from a fixed table). We expose a curated set.
+  var colorOptions = params.bw ? [
+    { hex: '#000000', name: 'Black' },
+    { hex: '#555555', name: 'Dark Gray' }, // darkest reliably visible ghost on Pebble Time
+    { hex: '#777777', name: 'Gray' },
+    { hex: '#AAAAAA', name: 'Light Gray' },
+    { hex: '#FFFFFF', name: 'White' }
+  ] : [
+    { hex: '#000000', name: 'Black' },
+    { hex: '#555555', name: 'Dark Gray' },
+    { hex: '#AAAAAA', name: 'Light Gray' },
+    { hex: '#FFFFFF', name: 'White' },
+    { hex: '#FF0000', name: 'Red' },
+    { hex: '#FFFF00', name: 'Yellow' },
+    { hex: '#00FF00', name: 'Green' },
+    { hex: '#00FFFF', name: 'Cyan' },
+    { hex: '#0000FF', name: 'Blue' },
+    { hex: '#FF00FF', name: 'Magenta' },
+    { hex: '#FF9900', name: 'Orange' },
+    { hex: '#8000FF', name: 'Purple' }
   ];
 
-  var defaultRows = [
-    { type: 0, color: '#00ffff' },
-    { type: 1, color: '#ffffff' },
-    { type: 2, color: '#aaaaaa' },
-    { type: 3, color: '#aaaaaa' },
-    { type: 5, color: '#00ff00' }
-  ];
+  function quantizeToPebble(hex) {
+    // Clamp to nearest of our curated list for simplicity
+    hex = (hex||'').toUpperCase();
+    var list = colorOptions.map(function(c){return c.hex;});
+    if (list.indexOf(hex) >= 0) return hex;
+    // fallback by lightness buckets
+    try {
+      var r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
+      // grayscale snap if near gray
+      if (Math.abs(r-g)<16 && Math.abs(g-b)<16) {
+        var l = (r+g+b)/3;
+        if (l<32) return '#000000';
+        if (l<72) return '#555555';
+        if (l<160) return '#AAAAAA';
+        if (l<224) return '#FFFFFF';
+        return '#FFFFFF';
+      }
+      // primary-like
+      if (r>200 && g<80 && b<80) return '#FF0000';
+      if (r<80 && g>200 && b<80) return '#00FF00';
+      if (r<80 && g<80 && b>200) return '#0000FF';
+      if (r>200 && g>200 && b<80) return '#FFFF00';
+      if (r<80 && g>200 && b>200) return '#00FFFF';
+      if (r>200 && g<80 && b>200) return '#FF00FF';
+      if (r>200 && g>120 && b<40) return '#FF9900';
+    } catch(e) {}
+    return params.bw ? '#FFFFFF' : '#FFFFFF';
+  }
+
+  var defaultRows = Array(params.rows).fill(0).map(function(_,i){
+    var types = [0,1,2,3,5];
+    var colors = ['#00FFFF','#FFFFFF','#AAAAAA','#AAAAAA','#00FF00'];
+    return { type: types[i]||0, color: colors[i]||'#FFFFFF' };
+  });
 
   function byId(id){return document.getElementById(id);}  
 
@@ -50,18 +92,21 @@
 
   function buildRowsForm() {
     var form = byId('rows-form');
-    var typeSelects = form.querySelectorAll('select.row-type');
+  var typeSelects = form.querySelectorAll('select.row-type');
+  // Hide rows beyond params.rows
+  var rowlines = form.querySelectorAll('.rowline');
+  rowlines.forEach(function(div, idx){ div.style.display = (idx < params.rows) ? '' : 'none'; });
     typeSelects.forEach(function(sel, idx){
       sel.innerHTML = '';
       RowTypes.forEach(function(rt){
         var o = document.createElement('option');
         o.value = rt.id; o.textContent = rt.name; sel.appendChild(o);
       });
-      sel.value = String(defaultRows[idx].type);
+  if (idx < params.rows) sel.value = String(defaultRows[idx].type);
     });
     var colorInputs = form.querySelectorAll('input.row-color');
     var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
-    var useFallback = !supportsColorInput();
+  var useFallback = !supportsColorInput();
     colorFallbacks.forEach(function(sel, idx){
       sel.innerHTML = '';
       colorOptions.forEach(function(opt){
@@ -70,10 +115,12 @@
         o.textContent = opt.name + ' (' + opt.hex + ')';
         sel.appendChild(o);
       });
-      sel.value = defaultRows[idx].color;
+  if (idx < params.rows) sel.value = defaultRows[idx].color;
     });
     colorInputs.forEach(function(inp, idx){
-      inp.value = defaultRows[idx].color;
+      if (idx < params.rows) inp.value = defaultRows[idx].color;
+      inp.setAttribute('list','palette-list');
+      inp.addEventListener('change', function(){ inp.value = quantizeToPebble(inp.value); });
       if (useFallback) { inp.hidden = true; colorFallbacks[idx].hidden = false; colorFallbacks[idx].value = defaultRows[idx].color; }
     });
   }
@@ -85,10 +132,10 @@
     var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
     var useFallback = !supportsColorInput();
     var rows = [];
-    for (var i=0;i<5;i++) {
+  for (var i=0;i<params.rows;i++) {
       var type = parseInt(typeSelects[i].value,10);
       var color = useFallback ? colorFallbacks[i].value : colorInputs[i].value;
-      rows.push({ type:type, color:color });
+  rows.push({ type:type, color:quantizeToPebble(color) });
     }
     return rows;
   }
@@ -104,10 +151,10 @@
   var rows = collectRows();
   var useFallback = !supportsColorInput();
   // Read BG colors with fallback
-  var colLow = useFallback ? byId('colLowFallback').value : byId('colLow').value;
-  var colIn  = useFallback ? byId('colInFallback').value  : byId('colIn').value;
-  var colHigh= useFallback ? byId('colHighFallback').value: byId('colHigh').value;
-  var ghost  = useFallback ? byId('ghostFallback').value  : byId('ghost').value;
+  var colLow = quantizeToPebble(useFallback ? byId('colLowFallback').value : byId('colLow').value);
+  var colIn  = quantizeToPebble(useFallback ? byId('colInFallback').value  : byId('colIn').value);
+  var colHigh= quantizeToPebble(useFallback ? byId('colHighFallback').value: byId('colHigh').value);
+  var ghost  = quantizeToPebble(useFallback ? byId('ghostFallback').value  : byId('ghost').value);
     var payload = {
       showLeadingZero: byId('leadingZero').checked,
       dateFormat: parseInt(document.querySelector('input[name="datefmt"]:checked').value,10),
@@ -138,11 +185,49 @@
     buildRowsForm();
     // Setup color fallbacks visibility for BG colors
     var useFallback = !supportsColorInput();
+    // Populate color fallback selects from curated palette
+    ['colLowFallback','colInFallback','colHighFallback','ghostFallback'].forEach(function(id){
+      var sel = byId(id);
+      if (!sel) return;
+      sel.innerHTML = '';
+      var opts = colorOptions;
+      if (id === 'ghostFallback') {
+        // Ghost: offer only grayscale choices
+        opts = colorOptions.filter(function(c){ return c.hex==='#000000' || c.hex==='#555555' || c.hex==='#777777' || c.hex==='#AAAAAA' || c.hex==='#FFFFFF'; });
+      }
+      opts.forEach(function(opt){
+        var o = document.createElement('option');
+        o.value = opt.hex; o.textContent = opt.name + ' (' + opt.hex + ')'; sel.appendChild(o);
+      });
+    });
     ['colLow','colIn','colHigh','ghost'].forEach(function(id){
       var input = byId(id);
       var sel = byId(id+'Fallback');
+      input.setAttribute('list','palette-list');
+      input.addEventListener('change', function(){ input.value = quantizeToPebble(input.value); });
       if (useFallback) { input.hidden = true; sel.hidden = false; sel.value = input.value; }
     });
+    // Build legend dynamically
+    try {
+      var legend = byId('color-legend-list');
+      legend.innerHTML = '';
+      colorOptions.forEach(function(opt){
+        var li = document.createElement('li');
+        li.innerHTML = '<span style="display:inline-block;width:1.5em;height:1.5em;background:'+opt.hex+';border-radius:4px;margin-right:.5em;'+(opt.hex==='#FFFFFF'||opt.hex==='#000000'?'border:1px solid #ccc;':'')+'"></span>'+opt.name+' ('+opt.hex+')';
+        legend.appendChild(li);
+      });
+    } catch(e) {}
+
+    // Populate datalist for native color inputs to only show compatible colors
+    try {
+      var dl = byId('palette-list');
+      dl.innerHTML = '';
+      colorOptions.forEach(function(opt){
+        var o = document.createElement('option');
+        o.value = opt.hex; o.label = opt.name; dl.appendChild(o);
+      });
+    } catch(e) {}
+
     // Restore prior config if available
     try {
       var saved = localStorage.getItem('supercgm_config');
@@ -160,10 +245,11 @@
         byId('low').value = cfg.low || 80;
         byId('high').value = cfg.high || 180;
         var useFb = !supportsColorInput();
-        (useFb?byId('colLowFallback'):byId('colLow')).value = (cfg.colors&&cfg.colors.low)||'#ff0000';
-        (useFb?byId('colInFallback'):byId('colIn')).value = (cfg.colors&&cfg.colors.in)||'#00ff00';
-        (useFb?byId('colHighFallback'):byId('colHigh')).value = (cfg.colors&&cfg.colors.high)||'#ffff00';
-  (useFb?byId('ghostFallback'):byId('ghost')).value = (cfg.colors&&cfg.colors.ghost)||'#2a2a2a';
+  (useFb?byId('colLowFallback'):byId('colLow')).value = quantizeToPebble((cfg.colors&&cfg.colors.low)||'#FF0000');
+  (useFb?byId('colInFallback'):byId('colIn')).value = quantizeToPebble((cfg.colors&&cfg.colors.in)||'#00FF00');
+  (useFb?byId('colHighFallback'):byId('colHigh')).value = quantizeToPebble((cfg.colors&&cfg.colors.high)||'#FFFF00');
+  var ghostDefault = params.bw ? '#FFFFFF' : '#555555';
+  (useFb?byId('ghostFallback'):byId('ghost')).value = quantizeToPebble((cfg.colors&&cfg.colors.ghost)||ghostDefault);
         var form = byId('rows-form');
         var typeSelects = form.querySelectorAll('select.row-type');
         var colorInputs = form.querySelectorAll('input.row-color');
