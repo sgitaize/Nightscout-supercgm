@@ -94,16 +94,6 @@ If you have an idea for a new function, feel free to open an issue or PR.
 
 ---
 
-## 🎨 Design Inspiration & Trademark Notice
-
-The visual style of supercgm-ns is **inspired by minimalist, line-based watchface design**  
-similar to the aesthetic of TTMMBRN.  
-
-- “TTMM” and “TTMMBRN” are **registered trademarks of TTMM sp. z o.o.**  
-- **supercgm-ns is not affiliated with, sponsored by, or endorsed by TTMM or its designers.**  
-- All fonts, graphics, and source code in this repository are **original work**, released under the MIT License.
-
----
 
 ## 📜 License
 
