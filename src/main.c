@@ -62,10 +62,21 @@ static GColor ColorFromHex(uint32_t hex) {
   uint8_t g = (hex >> 8) & 0xFF;
   uint8_t b = (hex) & 0xFF;
   return GColorFromRGB(r, g, b);
+#elif defined(PBL_PLATFORM_DIORITE)
+  // Pebble 2 supports 4-level grayscale: quantize to the closest light gray while avoiding pure black
+  uint8_t r = (hex >> 16) & 0xFF;
+  uint8_t g = (hex >> 8) & 0xFF;
+  uint8_t b = (hex) & 0xFF;
+  uint8_t lum = (uint8_t)((r * 3 + g * 6 + b) / 10);
+  // Snap to 0, 85, 170, 255 but keep at least 85 so text stays visible on black background
+  uint8_t level = (lum + 21) / 64; // 0..4-ish
+  if (level < 1) level = 1;
+  if (level > 3) level = 3;
+  uint8_t grey = (uint8_t)(level * 85);
+  return GColorFromRGB(grey, grey, grey);
 #else
-  // Map any color to black/white
-  uint8_t lum = (uint8_t)( ((hex >> 16) & 0xFF)*3 + ((hex >> 8) & 0xFF)*6 + (hex & 0xFF) ) / 10;
-  return lum > 127 ? GColorWhite : GColorBlack;
+  // Aplite (Pebble Classic) is strictly B/W – always return white for foreground elements
+  return GColorWhite;
 #endif
 }
 
@@ -289,9 +300,9 @@ static void draw_all_rows(void) {
 
   // Assign texts and colors per row into 5 slots
   for (int i = 0; i < ROWS; i++) {
-  GColor color = s_row_colors[i];
-#if defined(PBL_BW)
-    // Force white digits on BW so text is always visible on black background
+    GColor color = s_row_colors[i];
+#if defined(PBL_PLATFORM_APLITE)
+    // Force white digits on Pebble Classic so text is visible on black background
     color = GColorWhite;
 #endif
     // Build a 5-char buffer for this row
@@ -590,7 +601,7 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
   }
   if ((t = dict_find(iter, MESSAGE_KEY_GHOST_COLOR))) {
   s_ghost_hex = (uint32_t)t->value->int32;
-#if defined(PBL_BW)
+#if defined(PBL_PLATFORM_APLITE)
   // Ignore provided ghost color on BW to avoid black-on-black; keep white + hatch
   s_ghost_color = GColorWhite;
 #else
@@ -656,7 +667,7 @@ static void main_window_load(Window *window) {
       text_layer_set_background_color(s_ghost_layers[i][c], GColorClear);
       text_layer_set_text_alignment(s_ghost_layers[i][c], GTextAlignmentCenter);
   text_layer_set_text_color(s_ghost_layers[i][c], s_ghost_color);
-#if defined(PBL_BW)
+#if defined(PBL_PLATFORM_APLITE)
   text_layer_set_text_color(s_ghost_layers[i][c], GColorWhite);
 #endif
       text_layer_set_text(s_ghost_layers[i][c], "8");
@@ -736,7 +747,7 @@ static void init_defaults(void) {
   for (int i=0;i<ROWS;i++) s_row_colors[i] = ColorFromHex(s_row_color_hex[i]);
   // Ghost grid color: mid grey on color; force white on BW to ensure visibility
   s_ghost_hex = 0x888888; s_ghost_color = ColorFromHex(s_ghost_hex);
-#if defined(PBL_BW)
+#if defined(PBL_PLATFORM_APLITE)
   s_ghost_color = GColorWhite; // BW has no gray; we lighten via hatch overlay below
 #endif
   s_col_low_hex = 0xFF0000; s_col_low = ColorFromHex(s_col_low_hex);
@@ -844,8 +855,8 @@ static void load_config_cache(void) {
     s_ghost_hex = 0x888888; s_ghost_color = ColorFromHex(s_ghost_hex);
   }
 #endif
-#if defined(PBL_BW)
-  // Ensure ghost is visible on Pebble 2 / BW regardless of stored value
+#if defined(PBL_PLATFORM_APLITE)
+  // Ensure ghost remains visible on Pebble Classic regardless of stored value
   s_ghost_color = GColorWhite;
 #endif
   s_show_leading_zero = cc.show_leading_zero != 0;
