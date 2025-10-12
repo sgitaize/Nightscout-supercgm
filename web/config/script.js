@@ -27,8 +27,8 @@
   // Pebble color palette approximation (Basalt/Chalk are 64 colors from a fixed table). We expose a curated set.
   var colorOptions = params.bw ? [
     { hex: '#000000', name: 'Black' },
-    { hex: '#555555', name: 'Dark Gray' }, // darkest reliably visible ghost on Pebble Time
-    { hex: '#777777', name: 'Gray' },
+    { hex: '#555555', name: 'Dark Gray' },
+    { hex: '#777777', name: 'Mid Gray' },
     { hex: '#AAAAAA', name: 'Light Gray' },
     { hex: '#FFFFFF', name: 'White' }
   ] : [
@@ -47,39 +47,65 @@
   ];
 
   function quantizeToPebble(hex) {
-    // Clamp to nearest of our curated list for simplicity
-    hex = (hex||'').toUpperCase();
-    var list = colorOptions.map(function(c){return c.hex;});
-    if (list.indexOf(hex) >= 0) return hex;
-    // fallback by lightness buckets
+    hex = (hex || '').toUpperCase();
+    if (!/^#[0-9A-F]{6}$/.test(hex)) {
+      return params.bw ? '#FFFFFF' : '#FFFFFF';
+    }
+    var palette = colorOptions.map(function(c){ return c.hex; });
+    if (palette.indexOf(hex) >= 0) return hex;
+    var r, g, b;
     try {
-      var r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
-      // grayscale snap if near gray
-      if (Math.abs(r-g)<16 && Math.abs(g-b)<16) {
-        var l = (r+g+b)/3;
-        if (l<32) return '#000000';
-        if (l<72) return '#555555';
-        if (l<160) return '#AAAAAA';
-        if (l<224) return '#FFFFFF';
-        return '#FFFFFF';
-      }
-      // primary-like
-      if (r>200 && g<80 && b<80) return '#FF0000';
-      if (r<80 && g>200 && b<80) return '#00FF00';
-      if (r<80 && g<80 && b>200) return '#0000FF';
-      if (r>200 && g>200 && b<80) return '#FFFF00';
-      if (r<80 && g>200 && b>200) return '#00FFFF';
-      if (r>200 && g<80 && b>200) return '#FF00FF';
-      if (r>200 && g>120 && b<40) return '#FF9900';
-    } catch(e) {}
-    return params.bw ? '#FFFFFF' : '#FFFFFF';
+      r = parseInt(hex.substr(1, 2), 16);
+      g = parseInt(hex.substr(3, 2), 16);
+      b = parseInt(hex.substr(5, 2), 16);
+    } catch (e) {
+      return params.bw ? '#FFFFFF' : '#FFFFFF';
+    }
+    if (params.bw) {
+      var bwLevels = ['#000000', '#555555', '#777777', '#AAAAAA', '#FFFFFF'];
+      var lum = (r * 3 + g * 6 + b) / 10; // perceptual weight similar to watch code
+      var idx = Math.round((lum / 255) * (bwLevels.length - 1));
+      if (idx < 0) idx = 0;
+      if (idx >= bwLevels.length) idx = bwLevels.length - 1;
+      return bwLevels[idx];
+    }
+    // fallback by lightness buckets for color displays
+    if (Math.abs(r - g) < 16 && Math.abs(g - b) < 16) {
+      var l = (r + g + b) / 3;
+      if (l < 32) return '#000000';
+      if (l < 72) return '#555555';
+      if (l < 160) return '#AAAAAA';
+      return '#FFFFFF';
+    }
+    if (r > 200 && g < 80 && b < 80) return '#FF0000';
+    if (r < 80 && g > 200 && b < 80) return '#00FF00';
+    if (r < 80 && g < 80 && b > 200) return '#0000FF';
+    if (r > 200 && g > 200 && b < 80) return '#FFFF00';
+    if (r < 80 && g > 200 && b > 200) return '#00FFFF';
+    if (r > 200 && g < 80 && b > 200) return '#FF00FF';
+    if (r > 200 && g > 120 && b < 40) return '#FF9900';
+    return '#FFFFFF';
   }
 
   var defaultRows = Array(params.rows).fill(0).map(function(_,i){
     var types = [0,1,2,3,5];
-    var colors = ['#00FFFF','#FFFFFF','#AAAAAA','#AAAAAA','#00FF00'];
-    return { type: types[i]||0, color: colors[i]||'#FFFFFF' };
+    var colorsBW = ['#FFFFFF','#FFFFFF','#AAAAAA','#AAAAAA','#FFFFFF'];
+    var colorsColor = ['#00FFFF','#FFFFFF','#AAAAAA','#AAAAAA','#00FF00'];
+    var palette = params.bw ? colorsBW : colorsColor;
+    return { type: types[i]||0, color: palette[i]||'#FFFFFF' };
   });
+
+  var defaultBgColors = params.bw ? {
+    low: '#FFFFFF',
+    in: '#AAAAAA',
+    high: '#555555',
+    ghost: '#AAAAAA'
+  } : {
+    low: '#FF0000',
+    in: '#00FF00',
+    high: '#FFFF00',
+    ghost: '#555555'
+  };
 
   function byId(id){return document.getElementById(id);}  
 
@@ -200,12 +226,22 @@
         o.value = opt.hex; o.textContent = opt.name + ' (' + opt.hex + ')'; sel.appendChild(o);
       });
     });
+    var bgKeyById = { colLow: 'low', colIn: 'in', colHigh: 'high', ghost: 'ghost' };
     ['colLow','colIn','colHigh','ghost'].forEach(function(id){
       var input = byId(id);
       var sel = byId(id+'Fallback');
-      input.setAttribute('list','palette-list');
-      input.addEventListener('change', function(){ input.value = quantizeToPebble(input.value); });
-      if (useFallback) { input.hidden = true; sel.hidden = false; sel.value = input.value; }
+      var key = bgKeyById[id];
+      var defaultValue = quantizeToPebble(defaultBgColors[key]);
+      if (input) {
+        input.value = defaultValue;
+        input.setAttribute('list','palette-list');
+        input.addEventListener('change', function(){ input.value = quantizeToPebble(input.value); });
+        input.hidden = useFallback && !!sel;
+      }
+      if (sel) {
+        sel.value = defaultValue;
+        sel.hidden = !useFallback;
+      }
     });
     // Build legend dynamically
     try {
@@ -244,12 +280,17 @@
         document.querySelector('input[name="bgunit"][value="'+(cfg.bgUnit||'mgdl')+'"]').checked = true;
         byId('low').value = cfg.low || 80;
         byId('high').value = cfg.high || 180;
-        var useFb = !supportsColorInput();
-  (useFb?byId('colLowFallback'):byId('colLow')).value = quantizeToPebble((cfg.colors&&cfg.colors.low)||'#FF0000');
-  (useFb?byId('colInFallback'):byId('colIn')).value = quantizeToPebble((cfg.colors&&cfg.colors.in)||'#00FF00');
-  (useFb?byId('colHighFallback'):byId('colHigh')).value = quantizeToPebble((cfg.colors&&cfg.colors.high)||'#FFFF00');
-  var ghostDefault = params.bw ? '#FFFFFF' : '#555555';
-  (useFb?byId('ghostFallback'):byId('ghost')).value = quantizeToPebble((cfg.colors&&cfg.colors.ghost)||ghostDefault);
+        var applyColorValue = function(id, value) {
+          var input = byId(id);
+          var sel = byId(id + 'Fallback');
+          var quant = quantizeToPebble(value);
+          if (input) input.value = quant;
+          if (sel) sel.value = quant;
+        };
+        applyColorValue('colLow', (cfg.colors && cfg.colors.low) || defaultBgColors.low);
+        applyColorValue('colIn', (cfg.colors && cfg.colors.in) || defaultBgColors.in);
+        applyColorValue('colHigh', (cfg.colors && cfg.colors.high) || defaultBgColors.high);
+        applyColorValue('ghost', (cfg.colors && cfg.colors.ghost) || defaultBgColors.ghost);
         var form = byId('rows-form');
         var typeSelects = form.querySelectorAll('select.row-type');
         var colorInputs = form.querySelectorAll('input.row-color');
@@ -257,7 +298,9 @@
         for (var i=0;i<5;i++) {
           if (cfg.rows && cfg.rows[i]) {
             typeSelects[i].value = String(cfg.rows[i].type);
-            if (useFb) colorFallbacks[i].value = cfg.rows[i].color; else colorInputs[i].value = cfg.rows[i].color;
+            var quantColor = quantizeToPebble(cfg.rows[i].color || '#FFFFFF');
+            if (colorInputs[i]) colorInputs[i].value = quantColor;
+            if (colorFallbacks[i]) colorFallbacks[i].value = quantColor;
           }
         }
       }

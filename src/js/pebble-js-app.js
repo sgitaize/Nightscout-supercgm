@@ -35,12 +35,22 @@ var keys = require('message_keys');
     return parseInt(hex.replace('#',''), 16);
   }
 
+  var isBWPlatform = false;
+  var bwPalette = ['#000000','#555555','#777777','#AAAAAA','#FFFFFF'];
+
   function quantize(hex) {
     var palette = ['#000000','#555555','#AAAAAA','#FFFFFF','#FF0000','#FFFF00','#00FF00','#00FFFF','#0000FF','#FF00FF','#FF9900','#8000FF'];
     hex = (hex||'').toUpperCase();
     if (palette.indexOf(hex) >= 0) return hex;
     try {
       var r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
+      if (isBWPlatform) {
+        var lum = (r * 3 + g * 6 + b) / 10;
+        var idx = Math.round((lum / 255) * (bwPalette.length - 1));
+        if (idx < 0) idx = 0;
+        if (idx >= bwPalette.length) idx = bwPalette.length - 1;
+        return bwPalette[idx];
+      }
       if (Math.abs(r-g)<16 && Math.abs(g-b)<16) {
         var l=(r+g+b)/3; if(l<32) return '#000000'; if(l<72) return '#555555'; if(l<160) return '#AAAAAA'; return '#FFFFFF';
       }
@@ -59,6 +69,21 @@ var keys = require('message_keys');
     var out = {};
     Object.keys(dict).forEach(function(k){ out[keys[k]] = dict[k]; });
     return out;
+  }
+
+  function enforceBWPalette() {
+    if (!isBWPlatform) return;
+    config.rows = (config.rows || []).map(function(row){
+      return {
+        type: row.type,
+        color: quantize(row.color)
+      };
+    });
+    if (!config.colors) config.colors = {};
+    config.colors.low = quantize(config.colors.low || '#FFFFFF');
+    config.colors.in = quantize(config.colors.in || '#AAAAAA');
+    config.colors.high = quantize(config.colors.high || '#555555');
+    config.colors.ghost = quantize(config.colors.ghost || '#AAAAAA');
   }
 
   function sendConfig() {
@@ -287,8 +312,14 @@ var keys = require('message_keys');
   }
 
   Pebble.addEventListener('ready', function() {
+    try {
+      var info = (Pebble.getActiveWatchInfo && Pebble.getActiveWatchInfo()) || {};
+      var platform = info.platform || '';
+      isBWPlatform = (platform === 'aplite' || platform === 'diorite');
+    } catch(e) { isBWPlatform = false; }
     // Load saved config if available so we don't overwrite watch with defaults
     loadSavedConfig();
+    enforceBWPalette();
     sendConfig();
     scheduleWeather();
     scheduleBG();
@@ -307,8 +338,8 @@ var keys = require('message_keys');
 
   Pebble.addEventListener('showConfiguration', function() {
     var info = (Pebble.getActiveWatchInfo && Pebble.getActiveWatchInfo()) || {};
-    var platform = info.platform || 'basalt';
-    var isBW = (platform === 'aplite' || platform === 'diorite');
+    var platform = info.platform || (isBWPlatform ? 'diorite' : 'basalt');
+    var isBW = isBWPlatform || (platform === 'aplite' || platform === 'diorite');
   var isRound = (platform === 'chalk');
   var rows = isRound ? 4 : 5;
     var url = 'http://supercgm-config.aize-it.de/config/index.html' +
