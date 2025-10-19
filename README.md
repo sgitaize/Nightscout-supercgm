@@ -87,6 +87,7 @@ This project is **open source (MIT License)** and welcomes:
 - New feature ideas
 - Bug reports
 - Pull requests and forks
+- Other Devs to help building this watchface
 
 About **90 % of the implementation was “Vibe-coded” with GPT-5**,  
 which means the majority of the logic was pair-programmed and iteratively refined together with an AI assistant.  
