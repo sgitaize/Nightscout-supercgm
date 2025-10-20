@@ -18,56 +18,56 @@
           "name": "FONT_DSEG_30_BOLD",
           "file": "fonts/DSEG14Classic-Bold.ttf",
           "size": 30,
-          "characterRegex": "[0-9A-Z:%/ °F-]"
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
         },
         {
           "type": "font",
           "name": "FONT_DSEG_30_REG",
           "file": "fonts/DSEG14Classic-Regular.ttf",
           "size": 30,
-          "characterRegex": "[0-9A-Z:%/ °F-]"
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
         },
         {
           "type": "font",
           "name": "FONT_DSEG_29_BOLD",
           "file": "fonts/DSEG14Classic-Bold.ttf",
           "size": 29,
-          "characterRegex": "[0-9A-Z:%/ °F-]"
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
         },
         {
           "type": "font",
           "name": "FONT_DSEG_29_REG",
           "file": "fonts/DSEG14Classic-Regular.ttf",
           "size": 29,
-          "characterRegex": "[0-9A-Z:%/ °F-]"
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
         },
         {
           "type": "font",
           "name": "FONT_DSEG_25_BOLD",
           "file": "fonts/DSEG14Classic-Bold.ttf",
           "size": 25,
-          "characterRegex": "[0-9A-Z:%/ °F-]"
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
         },
         {
           "type": "font",
           "name": "FONT_DSEG_25_REG",
           "file": "fonts/DSEG14Classic-Regular.ttf",
           "size": 25,
-          "characterRegex": "[0-9A-Z:%/ °F-]"
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
         },
         {
           "type": "font",
           "name": "FONT_DSEG_26_BOLD",
           "file": "fonts/DSEG14Classic-Bold.ttf",
           "size": 26,
-          "characterRegex": "[0-9A-Z:%/ °F-]"
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
         },
         {
           "type": "font",
           "name": "FONT_DSEG_26_REG",
           "file": "fonts/DSEG14Classic-Regular.ttf",
           "size": 26,
-          "characterRegex": "[0-9A-Z:%/ °F-]"
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
         }
       ]
     },

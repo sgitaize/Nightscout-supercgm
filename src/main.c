@@ -286,7 +286,14 @@ static void draw_all_rows(void) {
       snprintf(s_bg, sizeof(s_bg), "NOCON");
     } else {
   // Keep BG numeric-only to preserve monospaced grid
-  snprintf(s_bg, sizeof(s_bg), "%d", s_bg_sgv);
+  if (s_bg_unit_mmol) {
+        int mmol10 = (s_bg_sgv * 10) / 18;
+        int whole = mmol10 / 10;
+        int frac  = mmol10 % 10;
+        snprintf(s_bg, sizeof(s_bg), "%d.%d", whole, frac);
+  }  
+    else
+    snprintf(s_bg, sizeof(s_bg), "%d", s_bg_sgv);
     }
   }
 
