@@ -439,9 +439,13 @@ static void draw_all_rows(void) {
         if (s_weather_deg_layer) layer_set_hidden(s_weather_deg_layer, true);
 
         // Rectangular: numeric in slots 0..2, unit in slot 4; degree drawn in slot 3 via overlay
-  #if !defined(PBL_ROUND)
+#if !defined(PBL_ROUND)
     if (l2 > 3) l2 = 3;
-    for (size_t k=0; k<l2 && k<3; k++) slots[k] = temp_no_deg[k];
+    int start_col = 3 - (int)l2;
+    if (start_col < 0) start_col = 0;
+    for (size_t k = 0; k < l2 && (start_col + (int)k) < 3; k++) {
+          slots[start_col + k] = temp_no_deg[k];
+        }
         slots[3] = ' '; // degree slot kept blank; overlay will draw dot
     slots[4] = ' ';
         if (unit_char == 'C' || unit_char == 'F') { slots[4] = unit_char; }
