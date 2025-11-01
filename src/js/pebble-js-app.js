@@ -374,7 +374,7 @@ var keys = require('message_keys');
     var isBW = isBWPlatform || (platform === 'aplite' || platform === 'diorite');
   var isRound = (platform === 'chalk');
   var rows = isRound ? 4 : 5;
-    var url = 'http://supercgm-config.aize-it.de/config/index.html' +
+    var url = 'http://supercgm-config.aize-it.de/config/website/index.html' +
       '?platform=' + encodeURIComponent(platform) +
       '&bw=' + (isBW ? '1' : '0') +
       '&rows=' + rows +
