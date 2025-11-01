@@ -17,11 +17,30 @@
       var p = new URLSearchParams(location.search);
       return {
         rows: Math.max(1, Math.min(5, parseInt(p.get('rows')||'5',10))),
-        bw: (p.get('bw') === '1')
+        bw: (p.get('bw') === '1'),
+        pebble2: (p.get('pebble2') === '1')
       };
-    } catch(e) { return { rows:5, bw:false }; }
+    } catch(e) { return { rows:5, bw:false, pebble2:false }; }
   }
   var params = getParams();
+  if (params.pebble2) params.bw = true;
+
+  function applyPebble2Colors(payload) {
+    if (!params.pebble2 || !payload) return payload;
+    if (!payload.colors) payload.colors = {};
+    payload.colors.low = '#FFFFFF';
+    payload.colors.in = '#FFFFFF';
+    payload.colors.high = '#FFFFFF';
+    payload.colors.ghost = '#777777';
+    if (Array.isArray(payload.rows)) {
+      payload.rows = payload.rows.map(function(row){
+        if (!row || typeof row !== 'object') return { type: 0, color: '#FFFFFF' };
+        row.color = '#FFFFFF';
+        return row;
+      });
+    }
+    return payload;
+  }
 
   // Farbauswahl für Fallback-Selects und Legende
   // Pebble color palette approximation (Basalt/Chalk are 64 colors from a fixed table). We expose a curated set.
@@ -89,18 +108,25 @@
 
   var defaultRows = Array(params.rows).fill(0).map(function(_,i){
     var types = [0,1,2,3,5];
-    var colorsBW = ['#FFFFFF','#FFFFFF','#AAAAAA','#AAAAAA','#FFFFFF'];
+    var colorsBW = params.pebble2 ?
+      ['#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF'] :
+      ['#FFFFFF','#FFFFFF','#AAAAAA','#AAAAAA','#FFFFFF'];
     var colorsColor = ['#00FFFF','#FFFFFF','#AAAAAA','#AAAAAA','#00FF00'];
     var palette = params.bw ? colorsBW : colorsColor;
     return { type: types[i]||0, color: palette[i]||'#FFFFFF' };
   });
 
-  var defaultBgColors = params.bw ? {
+  var defaultBgColors = params.bw ? (params.pebble2 ? {
+    low: '#FFFFFF',
+    in: '#FFFFFF',
+    high: '#FFFFFF',
+    ghost: '#777777'
+  } : {
     low: '#FFFFFF',
     in: '#AAAAAA',
     high: '#555555',
     ghost: '#AAAAAA'
-  } : {
+  }) : {
     low: '#FF0000',
     in: '#00FF00',
     high: '#FFFF00',
@@ -158,10 +184,13 @@
     var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
     var useFallback = !supportsColorInput();
     var rows = [];
-  for (var i=0;i<params.rows;i++) {
+    for (var i=0;i<params.rows;i++) {
       var type = parseInt(typeSelects[i].value,10);
       var color = useFallback ? colorFallbacks[i].value : colorInputs[i].value;
-  rows.push({ type:type, color:quantizeToPebble(color) });
+      if (params.pebble2) {
+        color = '#FFFFFF';
+      }
+      rows.push({ type:type, color:quantizeToPebble(color) });
     }
     return rows;
   }
@@ -174,34 +203,41 @@
   }
 
   function save() {
-  var rows = collectRows();
-  var useFallback = !supportsColorInput();
-  // Read BG colors with fallback
-  var colLow = quantizeToPebble(useFallback ? byId('colLowFallback').value : byId('colLow').value);
-  var colIn  = quantizeToPebble(useFallback ? byId('colInFallback').value  : byId('colIn').value);
-  var colHigh= quantizeToPebble(useFallback ? byId('colHighFallback').value: byId('colHigh').value);
-  var ghost  = quantizeToPebble(useFallback ? byId('ghostFallback').value  : byId('ghost').value);
+    var rows = collectRows();
+    var useFallback = !supportsColorInput();
+    // Read BG colors with fallback
+    var colLow = quantizeToPebble(useFallback ? byId('colLowFallback').value : byId('colLow').value);
+    var colIn  = quantizeToPebble(useFallback ? byId('colInFallback').value  : byId('colIn').value);
+    var colHigh= quantizeToPebble(useFallback ? byId('colHighFallback').value: byId('colHigh').value);
+    var ghost  = quantizeToPebble(useFallback ? byId('ghostFallback').value  : byId('ghost').value);
+    if (params.pebble2) {
+      colLow = '#FFFFFF';
+      colIn = '#FFFFFF';
+      colHigh = '#FFFFFF';
+      ghost = '#777777';
+    }
     var payload = {
       showLeadingZero: byId('leadingZero').checked,
       dateFormat: parseInt(document.querySelector('input[name="datefmt"]:checked').value,10),
       weekdayLang: parseInt(document.querySelector('input[name="wdlang"]:checked').value,10),
       tempUnit: document.querySelector('input[name="tempunit"]:checked').value,
-  weatherIntervalMin: parseInt(byId('weatherInt').value,10),
-  bgFetchIntervalMin: parseInt(byId('bgFetchInt').value,10),
+      weatherIntervalMin: parseInt(byId('weatherInt').value,10),
+      bgFetchIntervalMin: parseInt(byId('bgFetchInt').value,10),
       bgUrl: byId('bgUrl').value.trim(),
       bgTimeoutMin: parseInt(byId('bgTimeout').value,10),
       bgUnit: document.querySelector('input[name="bgunit"]:checked').value,
       low: parseInt(byId('low').value,10),
       high: parseInt(byId('high').value,10),
       colors: {
-    low: colLow,
-    in: colIn,
-    high: colHigh,
-    ghost: ghost
+        low: colLow,
+        in: colIn,
+        high: colHigh,
+        ghost: ghost
       },
       rows: rows
     };
-  try { localStorage.setItem('supercgm_config', JSON.stringify(payload)); } catch(e) {}
+    payload = applyPebble2Colors(payload);
+    try { localStorage.setItem('supercgm_config', JSON.stringify(payload)); } catch(e) {}
     document.location = 'pebblejs://close#' + encodeURIComponent(JSON.stringify(payload));
   }
 
@@ -269,6 +305,7 @@
       var saved = localStorage.getItem('supercgm_config');
       if (saved) {
         var cfg = JSON.parse(saved);
+        cfg = applyPebble2Colors(cfg);
         byId('leadingZero').checked = !!cfg.showLeadingZero;
         document.querySelector('input[name="datefmt"][value="'+(cfg.dateFormat||0)+'"]').checked = true;
         document.querySelector('input[name="wdlang"][value="'+(cfg.weekdayLang||0)+'"]').checked = true;
@@ -299,9 +336,13 @@
           if (cfg.rows && cfg.rows[i]) {
             typeSelects[i].value = String(cfg.rows[i].type);
             var quantColor = quantizeToPebble(cfg.rows[i].color || '#FFFFFF');
+            if (params.pebble2) quantColor = '#FFFFFF';
             if (colorInputs[i]) colorInputs[i].value = quantColor;
             if (colorFallbacks[i]) colorFallbacks[i].value = quantColor;
           }
+        }
+        if (params.pebble2) {
+          try { localStorage.setItem('supercgm_config', JSON.stringify(cfg)); } catch(e) {}
         }
       }
     } catch(e) {}

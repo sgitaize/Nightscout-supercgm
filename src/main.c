@@ -16,6 +16,12 @@ typedef enum {
   ROW_TYPE_STEPS = 6
 } RowType;
 
+typedef enum {
+  BG_STATUS_OK = 0,
+  BG_STATUS_NO_DATA = 1,
+  BG_STATUS_CONN_ERROR = 2
+} BgStatus;
+
 static Window *s_main_window;
 static TextLayer *s_digit_layers[ROWS][5];
 static TextLayer *s_ghost_layers[ROWS][5];
@@ -48,6 +54,7 @@ static char s_bg_trend[8];
 static int s_bg_unit_mmol = 0; // 0 mg/dL, 1 mmol
 
 static int s_bg_sgv = -1; // -1 unknown
+static BgStatus s_bg_status = BG_STATUS_NO_DATA;
 static time_t s_bg_timestamp = 0;
 static int s_bg_timeout_min = 20;
 static int s_bg_low = 80;
@@ -277,7 +284,9 @@ static void draw_all_rows(void) {
 
   // BG line
   static char s_bg[16];
-  if (s_bg_sgv < 0) {
+  if (s_bg_status == BG_STATUS_CONN_ERROR) {
+    snprintf(s_bg, sizeof(s_bg), "NOCONN");
+  } else if (s_bg_status == BG_STATUS_NO_DATA || s_bg_sgv < 0) {
     snprintf(s_bg, sizeof(s_bg), "NO-BG");
   } else {
     // staleness
@@ -285,15 +294,15 @@ static void draw_all_rows(void) {
     if (age_min > s_bg_timeout_min) {
       snprintf(s_bg, sizeof(s_bg), "NOCON");
     } else {
-  // Keep BG numeric-only to preserve monospaced grid
-  if (s_bg_unit_mmol) {
+      // Keep BG numeric-only to preserve monospaced grid
+      if (s_bg_unit_mmol) {
         int mmol10 = (s_bg_sgv * 10) / 18;
         int whole = mmol10 / 10;
         int frac  = mmol10 % 10;
         snprintf(s_bg, sizeof(s_bg), "%d.%d", whole, frac);
-  }  
-    else
-    snprintf(s_bg, sizeof(s_bg), "%d", s_bg_sgv);
+      } else {
+        snprintf(s_bg, sizeof(s_bg), "%d", s_bg_sgv);
+      }
     }
   }
 
@@ -329,9 +338,11 @@ static void draw_all_rows(void) {
         break;
       case ROW_TYPE_BATTERY:
         // color red if low
+#if defined(PBL_COLOR)
         if (batt_state.charge_percent <= 10) {
           color = GColorRed;
         }
+#endif
         {
           // right-align within 5 slots
           size_t bl = strlen(s_batt); if (bl > 5) bl = 5;
@@ -341,7 +352,7 @@ static void draw_all_rows(void) {
         break;
   case ROW_TYPE_BG: {
         // Color by thresholds
-        if (s_bg_sgv >= 0) {
+        if (s_bg_status == BG_STATUS_OK && s_bg_sgv >= 0) {
           if (s_bg_sgv < s_bg_low) color = s_col_low;
           else if (s_bg_sgv > s_bg_high) color = s_col_high;
           else color = s_col_in;
@@ -364,7 +375,7 @@ static void draw_all_rows(void) {
         for (size_t k=0;k<l;k++) slots[start + k] = s_bg[k];
 #endif
         // trend overlay
-        if (s_bg_trend_layer && s_bg_sgv >= 0) {
+        if (s_bg_trend_layer && s_bg_status == BG_STATUS_OK && s_bg_sgv >= 0) {
           s_bg_trend_color = color;
           // position overlay near the right
           Layer *window_layer = window_get_root_layer(s_main_window);
@@ -565,9 +576,10 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     s_bg_timestamp = (time_t)t->value->int32;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_BG_STATUS))) {
-    // 0 ok, 1 no bg, 2 stale
-    if (t->value->int32 == 1) {
+    s_bg_status = (BgStatus)t->value->int32;
+    if (s_bg_status != BG_STATUS_OK) {
       s_bg_sgv = -1;
+      s_bg_trend[0] = 0;
     }
   }
   if ((t = dict_find(iter, MESSAGE_KEY_BG_UNIT))) {
@@ -760,6 +772,20 @@ static void init_defaults(void) {
   s_col_low_hex = 0xFF0000; s_col_low = ColorFromHex(s_col_low_hex);
   s_col_high_hex = 0xFFFF00; s_col_high = ColorFromHex(s_col_high_hex);
   s_col_in_hex = 0x00FF00; s_col_in = ColorFromHex(s_col_in_hex);
+#if defined(PBL_PLATFORM_DIORITE)
+  for (int i=0; i<ROWS; i++) {
+    s_row_color_hex[i] = 0xFFFFFF;
+    s_row_colors[i] = ColorFromHex(s_row_color_hex[i]);
+  }
+  s_ghost_hex = 0x777777;
+  s_ghost_color = ColorFromHex(s_ghost_hex);
+  s_col_low_hex = 0xFFFFFF;
+  s_col_high_hex = 0xFFFFFF;
+  s_col_in_hex = 0xFFFFFF;
+  s_col_low = ColorFromHex(s_col_low_hex);
+  s_col_high = ColorFromHex(s_col_high_hex);
+  s_col_in = ColorFromHex(s_col_in_hex);
+#endif
 }
 
 
@@ -876,6 +902,20 @@ static void load_config_cache(void) {
   s_col_low_hex = cc.col_low_hex; s_col_low = ColorFromHex(s_col_low_hex);
   s_col_high_hex = cc.col_high_hex; s_col_high = ColorFromHex(s_col_high_hex);
   s_col_in_hex = cc.col_in_hex; s_col_in = ColorFromHex(s_col_in_hex);
+#if defined(PBL_PLATFORM_DIORITE)
+  for (int i=0; i<ROWS; i++) {
+    s_row_color_hex[i] = 0xFFFFFF;
+    s_row_colors[i] = ColorFromHex(s_row_color_hex[i]);
+  }
+  s_ghost_hex = 0x777777;
+  s_ghost_color = ColorFromHex(s_ghost_hex);
+  s_col_low_hex = 0xFFFFFF;
+  s_col_high_hex = 0xFFFFFF;
+  s_col_in_hex = 0xFFFFFF;
+  s_col_low = ColorFromHex(s_col_low_hex);
+  s_col_high = ColorFromHex(s_col_high_hex);
+  s_col_in = ColorFromHex(s_col_in_hex);
+#endif
 }
 
 // Draw compact trend arrows without relying on glyphs; use simple triangles/lines

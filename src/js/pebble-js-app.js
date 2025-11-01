@@ -36,7 +36,9 @@ var keys = require('message_keys');
   }
 
   var isBWPlatform = false;
+  var isPebble2 = false;
   var bwPalette = ['#000000','#555555','#777777','#AAAAAA','#FFFFFF'];
+  var BG_STATUS = { OK: 0, NO_DATA: 1, NO_CONN: 2 };
 
   function quantize(hex) {
     var palette = ['#000000','#555555','#AAAAAA','#FFFFFF','#FF0000','#FFFF00','#00FF00','#00FFFF','#0000FF','#FF00FF','#FF9900','#8000FF'];
@@ -74,16 +76,27 @@ var keys = require('message_keys');
   function enforceBWPalette() {
     if (!isBWPlatform) return;
     config.rows = (config.rows || []).map(function(row){
+      var color = row.color;
+      if (isPebble2) {
+        color = '#FFFFFF';
+      }
       return {
         type: row.type,
-        color: quantize(row.color)
+        color: isPebble2 ? '#FFFFFF' : quantize(color)
       };
     });
     if (!config.colors) config.colors = {};
-    config.colors.low = quantize(config.colors.low || '#FFFFFF');
-    config.colors.in = quantize(config.colors.in || '#AAAAAA');
-    config.colors.high = quantize(config.colors.high || '#555555');
-    config.colors.ghost = quantize(config.colors.ghost || '#AAAAAA');
+    if (isPebble2) {
+      config.colors.low = '#FFFFFF';
+      config.colors.in = '#FFFFFF';
+      config.colors.high = '#FFFFFF';
+      config.colors.ghost = '#777777';
+    } else {
+      config.colors.low = quantize(config.colors.low || '#FFFFFF');
+      config.colors.in = quantize(config.colors.in || '#AAAAAA');
+      config.colors.high = quantize(config.colors.high || '#555555');
+      config.colors.ghost = quantize(config.colors.ghost || '#AAAAAA');
+    }
   }
 
   function sendConfig() {
@@ -237,14 +250,23 @@ var keys = require('message_keys');
   }
 
   function fetchBG() {
+    function sendStatus(status, dict) {
+      var payload = dict || {};
+      payload.BG_STATUS = status;
+      Pebble.sendAppMessage(toKeyed(payload));
+    }
     if (!config.bgUrl) {
-      Pebble.sendAppMessage(toKeyed({ 'BG_STATUS': 1 })); // NO-BG
+      sendStatus(BG_STATUS.NO_DATA);
       return;
     }
     var url = config.bgUrl.replace(/\/$/, '') + '/pebble';
     var req = new XMLHttpRequest();
     req.onload = function() {
       try {
+        if (this.status && (this.status < 200 || this.status >= 300)) {
+          sendStatus(BG_STATUS.NO_CONN);
+          return;
+        }
         var json = JSON.parse(this.responseText);
         // responses can vary; handle Nightscout /pebble (json.bgs[0]) and others
         var sgv = null, ts = null, trend = null;
@@ -277,18 +299,27 @@ var keys = require('message_keys');
           else if (dir.indexOf('singledown')>=0 || dir==='down') arrow='↓';
           else if (dir.indexOf('doubledown')>=0) arrow='↓↓';
 
-          Pebble.sendAppMessage(toKeyed({ 'BG_SGV': sgv, 'BG_TIMESTAMP': ts || Math.floor(Date.now()/1000), 'BG_STATUS': 0, 'BG_TREND': arrow, 'BG_UNIT': (config.bgUnit==='mmol'?1:0) }));
+          sendStatus(BG_STATUS.OK, {
+            'BG_SGV': sgv,
+            'BG_TIMESTAMP': ts || Math.floor(Date.now()/1000),
+            'BG_TREND': arrow,
+            'BG_UNIT': (config.bgUnit === 'mmol' ? 1 : 0)
+          });
         } else {
-          Pebble.sendAppMessage(toKeyed({ 'BG_STATUS': 1 }));
+          sendStatus(BG_STATUS.NO_DATA);
         }
       } catch(e) {
-        Pebble.sendAppMessage(toKeyed({ 'BG_STATUS': 1 }));
+        sendStatus(BG_STATUS.NO_DATA);
       }
     };
     req.onerror = function() {
-      Pebble.sendAppMessage(toKeyed({ 'BG_STATUS': 1 }));
+      sendStatus(BG_STATUS.NO_CONN);
+    };
+    req.ontimeout = function() {
+      sendStatus(BG_STATUS.NO_CONN);
     };
     req.open('GET', url);
+    req.timeout = 10000;
     req.send();
   }
 
@@ -316,7 +347,8 @@ var keys = require('message_keys');
       var info = (Pebble.getActiveWatchInfo && Pebble.getActiveWatchInfo()) || {};
       var platform = info.platform || '';
       isBWPlatform = (platform === 'aplite' || platform === 'diorite');
-    } catch(e) { isBWPlatform = false; }
+      isPebble2 = (platform === 'diorite');
+    } catch(e) { isBWPlatform = false; isPebble2 = false; }
     // Load saved config if available so we don't overwrite watch with defaults
     loadSavedConfig();
     enforceBWPalette();
@@ -345,7 +377,8 @@ var keys = require('message_keys');
     var url = 'http://supercgm-config.aize-it.de/config/index.html' +
       '?platform=' + encodeURIComponent(platform) +
       '&bw=' + (isBW ? '1' : '0') +
-      '&rows=' + rows;
+      '&rows=' + rows +
+      '&pebble2=' + ((platform === 'diorite') ? '1' : '0');
     Pebble.openURL(url);
   });
 
