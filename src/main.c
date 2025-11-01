@@ -13,7 +13,8 @@ typedef enum {
   ROW_TYPE_WEEKDAY = 3,
   ROW_TYPE_BATTERY = 4,
   ROW_TYPE_BG = 5,
-  ROW_TYPE_STEPS = 6
+  ROW_TYPE_STEPS = 6,
+  ROW_TYPE_HEART_RATE = 7
 } RowType;
 
 typedef enum {
@@ -62,6 +63,8 @@ static int s_bg_high = 180;
 static GColor s_col_low, s_col_high, s_col_in;
 static uint32_t s_row_color_hex[ROWS];
 static uint32_t s_col_low_hex, s_col_high_hex, s_col_in_hex, s_ghost_hex;
+static int s_hr_bpm = -1;
+static time_t s_hr_timestamp = 0;
 
 static GColor ColorFromHex(uint32_t hex) {
 #if defined(PBL_COLOR)
@@ -89,14 +92,32 @@ static GColor ColorFromHex(uint32_t hex) {
 
 static void update_time(void);
 static void request_weather(void);
-static void request_bg(void);
 static void draw_all_rows(void);
 static void trend_update_proc(Layer *layer, GContext *ctx);
 static void weather_deg_update_proc(Layer *layer, GContext *ctx);
+static void update_heart_rate(void);
 
-// helpers to detect UTF-8 arrows and ASCII fallbacks
-static bool contains_utf8(const char *s, const char *needle) {
-  return s && needle && strstr(s, needle) != NULL;
+static void update_heart_rate(void) {
+#if defined(PBL_HEALTH)
+  time_t now = time(NULL);
+  time_t start = now - 60;
+  HealthServiceAccessibilityMask mask = health_service_metric_accessible(HealthMetricHeartRateBPM, start, now);
+  if (mask & HealthServiceAccessibilityMaskAvailable) {
+    HealthValue hr = health_service_peek_current_value(HealthMetricHeartRateBPM);
+    if (hr > 0) {
+      s_hr_bpm = (int)hr;
+      if (s_hr_bpm > 250) s_hr_bpm = 250;
+      s_hr_timestamp = now;
+      return;
+    }
+  }
+#endif
+  // Leave existing reading intact if still fresh; otherwise mark as unavailable.
+  time_t now_fallback = time(NULL);
+  if (s_hr_timestamp == 0 || (now_fallback - s_hr_timestamp) > 300) {
+    s_hr_bpm = -1;
+    s_hr_timestamp = 0;
+  }
 }
 
 // Persisted configuration cache
@@ -225,7 +246,17 @@ static void layout_rows(void) {
 
 static void battery_handler(BatteryChargeState state) { draw_all_rows(); }
 
-static void health_handler(HealthEventType event, void *context) { if (event == HealthEventMovementUpdate) draw_all_rows(); }
+static void health_handler(HealthEventType event, void *context) {
+  if (event == HealthEventMovementUpdate) {
+    draw_all_rows();
+  }
+#if defined(PBL_HEALTH)
+  if (event == HealthEventHeartRateUpdate) {
+    update_heart_rate();
+    draw_all_rows();
+  }
+#endif
+}
 
 static void draw_all_rows(void) {
   time_t now = time(NULL);
@@ -281,6 +312,7 @@ static void draw_all_rows(void) {
   // Current battery and steps snapshot
   BatteryChargeState batt_state = battery_state_service_peek();
   HealthValue steps_now = health_service_sum_today(HealthMetricStepCount);
+  update_heart_rate();
 
   // BG line
   static char s_bg[16];
@@ -313,6 +345,15 @@ static void draw_all_rows(void) {
   // Steps
   static char s_steps[8];
   snprintf(s_steps, sizeof(s_steps), "%5ld", (long)steps_now);
+
+  // Heart rate
+  static char s_hr[6];
+  bool hr_fresh = (s_hr_bpm > 0 && s_hr_timestamp != 0 && (now - s_hr_timestamp) <= 300);
+  if (hr_fresh) {
+    snprintf(s_hr, sizeof(s_hr), "HR%3d", s_hr_bpm);
+  } else {
+    snprintf(s_hr, sizeof(s_hr), "HR --");
+  }
 
   // Assign texts and colors per row into 5 slots
   for (int i = 0; i < ROWS; i++) {
@@ -493,6 +534,9 @@ static void draw_all_rows(void) {
       case ROW_TYPE_STEPS:
         strncpy(slots, s_steps, 5);
         break;
+      case ROW_TYPE_HEART_RATE:
+        strncpy(slots, s_hr, 5);
+        break;
     }
 
     // Apply to slots and set fonts/colors
@@ -665,14 +709,6 @@ static void request_weather(void) {
   }
 }
 
-static void request_bg(void) {
-  DictionaryIterator *iter;
-  if (app_message_outbox_begin(&iter) == APP_MSG_OK) {
-    dict_write_int32(iter, MESSAGE_KEY_REQUEST_BG, 1);
-    app_message_outbox_send();
-  }
-}
-
 static void main_window_load(Window *window) {
   // Stelle sicher, dass die gespeicherte Konfiguration geladen wird
   load_config_cache();
@@ -835,6 +871,7 @@ static void init(void) {
   app_message_register_outbox_sent(outbox_sent_callback);
   app_message_open(1024, 256);
 
+  update_heart_rate();
   update_time();
 }
 

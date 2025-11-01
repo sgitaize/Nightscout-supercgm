@@ -8,7 +8,8 @@
     { id: 3, name: 'Weekday' },
     { id: 4, name: 'Battery' },
     { id: 5, name: 'Nightscout BG' },
-    { id: 6, name: 'Steps' }
+    { id: 6, name: 'Steps' },
+    { id: 7, name: 'Heart Rate' }
   ];
 
 
@@ -241,6 +242,22 @@
     document.location = 'pebblejs://close#' + encodeURIComponent(JSON.stringify(payload));
   }
 
+  function reloadLatest() {
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set('_ts', Date.now().toString());
+      window.location.href = url.toString();
+    } catch (e) {
+      try {
+        var base = window.location.href.split('#')[0];
+        var sep = base.indexOf('?') === -1 ? '?' : '&';
+        window.location.href = base + sep + '_ts=' + Date.now();
+      } catch (_) {
+        window.location.reload();
+      }
+    }
+  }
+
   function cancel(){ document.location = 'pebblejs://close'; }
 
   function init() {
@@ -353,6 +370,8 @@
     updateBGSectionVisibility();
     byId('save').onclick=save;
     byId('cancel').onclick=cancel;
+    var reloadBtn = byId('reload');
+    if (reloadBtn) reloadBtn.onclick = reloadLatest;
   }
 
   document.addEventListener('DOMContentLoaded', init);
