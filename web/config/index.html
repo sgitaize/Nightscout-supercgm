@@ -10,17 +10,17 @@
   <header class="hero">
     <div>
       <p class="eyebrow">supercgm-ns · SDK 3 ready</p>
-      <h1>Config für alle Pebbles</h1>
-      <p class="lede">Neue Oberfläche mit Presets für Round, Classic, Pebble 2 und Time/Steel. Alle Werte werden auf Pebble-kompatible Farben quantisiert, damit der Parameter-Transfer für jede Uhr zuverlässig klappt.</p>
+      <h1>Pick your watch and configure in one go</h1>
+      <p class="lede">Choose your Pebble model to get the right row count (4 for Round, 5 for rectangular) and a contrast-safe palette. All colors are quantized so parameters transfer reliably to every Pebble generation.</p>
       <div class="hero-tags">
-        <span class="tag">Kompatibel mit neuer Pebble App</span>
-        <span class="tag">Kontrast-Presets</span>
-        <span class="tag">4- oder 5-Reihen automatisch</span>
+        <span class="tag">Works with new Pebble app</span>
+        <span class="tag">Contrast-first presets</span>
+        <span class="tag">Color-safe transfers</span>
       </div>
     </div>
     <div class="hero-card">
-      <h3>Uhren-Presets</h3>
-      <p>Wähle deine Uhr, um Zeilenanzahl, Farben und Kontraste automatisch anzupassen.</p>
+      <h3>Watch presets</h3>
+      <p>Select your model. Switching presets updates row count, palette (B/W for Classic & Pebble 2), and default colors.</p>
       <div id="preset-grid" class="preset-grid"></div>
     </div>
   </header>
@@ -28,8 +28,8 @@
   <div class="container">
     <section class="card">
       <div class="section-head">
-        <h2>Zeilen</h2>
-        <p>Typ und Farbe pro Zeile. Für Rund-Uhren werden nur die sichtbaren Zeilen übertragen, trotzdem werden immer 5 Slots an die App geschickt, damit alle Plattformen stabil bleiben.</p>
+        <h2>Rows</h2>
+        <p>Pick a type and color per row. Round watches hide the edge slots but we still send all five slots to keep transfers stable on every Pebble.</p>
       </div>
       <div id="rows-form" class="rows-form">
         <div class="rowline">
@@ -82,8 +82,8 @@
 
     <section class="card">
       <div class="section-head">
-        <h2>Formatierung</h2>
-        <p>Alle Werte werden automatisch auf Pebble-kompatible Farben quantisiert.</p>
+        <h2>Formatting</h2>
+        <p>Everything is quantized to Pebble-safe colors. Adjust date, weekday language, and refresh intervals.</p>
       </div>
       <label><input type="checkbox" id="leadingZero" checked> Leading zero for time</label>
       <div class="inline-options">
@@ -110,7 +110,7 @@
     <section class="card" id="bg-section">
       <div class="section-head">
         <h2>Nightscout</h2>
-        <p>BG-Refresh und Thresholds nur sichtbar, wenn eine Zeile als Nightscout-BG markiert ist.</p>
+        <p>Only shown when at least one row is set to Nightscout BG. Set URL, timeout, refresh, thresholds, and colors.</p>
       </div>
       <label>Nightscout URL <input type="url" id="bgUrl" placeholder="https://myns.example.com"></label>
       <label>Timeout (min) <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
@@ -146,7 +146,7 @@
 
     <div class="actions card">
       <div class="action-info">
-        <p><strong>Tip:</strong> Bei Rund-Uhren bleiben Slots 1/5 der ersten und letzten Reihe ausgeblendet, die Daten werden aber weiterhin übertragen, damit alle Pebble-Apps stabil bleiben.</p>
+        <p><strong>Tip:</strong> Round watches hide the outer slots on the first/last row; data is still sent so every Pebble app stays stable.</p>
       </div>
       <div class="action-buttons">
         <button id="reload" class="secondary">Reload</button>
@@ -156,8 +156,8 @@
     </div>
 
     <section class="card" id="color-legend">
-      <h2>Kompatible Farben</h2>
-      <p>Diese Palette wird 1:1 an alle Pebble-Modelle übergeben. Dunkle Grauwerte sichern Lesbarkeit auf B/W und Pebble 2.</p>
+      <h2>Compatible palette</h2>
+      <p>Only Pebble-safe colors are sent. B/W watches get grayscale steps; Pebble 2 forces white text with mid-gray ghost.</p>
       <ul id="color-legend-list" class="color-legend"></ul>
     </section>
   </div>
