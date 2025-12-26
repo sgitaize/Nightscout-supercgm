@@ -67,6 +67,22 @@ var keys = require('message_keys');
     return '#FFFFFF';
   }
 
+  function normalizeRows(rows) {
+    var template = [
+      { type: 0, color: '#00FFFF' },
+      { type: 1, color: '#FFFFFF' },
+      { type: 2, color: '#AAAAAA' },
+      { type: 3, color: '#AAAAAA' },
+      { type: 5, color: '#00FF00' }
+    ];
+    var out = [];
+    for (var i = 0; i < 5; i++) {
+      var src = (rows && rows[i]) || template[i];
+      out.push({ type: src.type, color: src.color || '#FFFFFF' });
+    }
+    return out;
+  }
+
   function toKeyed(dict) {
     var out = {};
     Object.keys(dict).forEach(function(k){ out[keys[k]] = dict[k]; });
@@ -74,8 +90,9 @@ var keys = require('message_keys');
   }
 
   function enforceBWPalette() {
+    if (!config.rows || !Array.isArray(config.rows)) config.rows = normalizeRows(config.rows);
     if (!isBWPlatform) return;
-    config.rows = (config.rows || []).map(function(row){
+    config.rows = normalizeRows(config.rows).map(function(row){
       var color = row.color;
       if (isPebble2) {
         color = '#FFFFFF';
@@ -108,6 +125,7 @@ var keys = require('message_keys');
       });
     }
     // 1) Rows types/colors
+    config.rows = normalizeRows(config.rows);
     var rowsDict = {};
     for (var i=0; i<5; i++) {
       rowsDict['ROW' + (i+1) + '_TYPE'] = config.rows[i].type;
@@ -328,9 +346,11 @@ var keys = require('message_keys');
       var saved = localStorage.getItem('supercgm_config');
       if (saved) {
         var cfg = JSON.parse(saved);
+        if (cfg && cfg.rows) {
+          cfg.rows = normalizeRows(cfg.rows);
+        }
         // Basic sanity: ensure rows exist
-        if (cfg && Array.isArray(cfg.rows) && cfg.rows.length === 5) {
-          // Coerce too-dark ghost to mid-grey for visibility on color displays
+        if (cfg && Array.isArray(cfg.rows)) {
           if (!cfg.colors) cfg.colors = {};
           var g = (cfg.colors.ghost || '').toLowerCase();
           if (!g || /^#0{0,6}$/.test(g) || g === '#2a2a2a' || g === '#1e1e1e') {
@@ -371,10 +391,10 @@ var keys = require('message_keys');
   Pebble.addEventListener('showConfiguration', function() {
     var info = (Pebble.getActiveWatchInfo && Pebble.getActiveWatchInfo()) || {};
     var platform = info.platform || (isBWPlatform ? 'diorite' : 'basalt');
-    var isBW = isBWPlatform || (platform === 'aplite' || platform === 'diorite');
+  var isBW = isBWPlatform || (platform === 'aplite' || platform === 'diorite');
   var isRound = (platform === 'chalk');
   var rows = isRound ? 4 : 5;
-    var url = 'http://supercgm-config.aize-it.de/config/website/index.html' +
+    var url = 'https://supercgm-config.aize-it.de/config/index.html' +
       '?platform=' + encodeURIComponent(platform) +
       '&bw=' + (isBW ? '1' : '0') +
       '&rows=' + rows +
@@ -386,6 +406,7 @@ var keys = require('message_keys');
     if (!e || !e.response) { return; }
     try {
       config = JSON.parse(decodeURIComponent(e.response));
+      config.rows = normalizeRows(config.rows);
       // Persist to pkjs storage so it survives app restarts
       try { localStorage.setItem('supercgm_config', JSON.stringify(config)); } catch(_e) {}
       sendConfig();
