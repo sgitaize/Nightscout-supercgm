@@ -7,12 +7,30 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <h1>supercgm-ns</h1>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">supercgm-ns · SDK 3 ready</p>
+      <h1>Config für alle Pebbles</h1>
+      <p class="lede">Neue Oberfläche mit Presets für Round, Classic, Pebble 2 und Time/Steel. Alle Werte werden auf Pebble-kompatible Farben quantisiert, damit der Parameter-Transfer für jede Uhr zuverlässig klappt.</p>
+      <div class="hero-tags">
+        <span class="tag">Kompatibel mit neuer Pebble App</span>
+        <span class="tag">Kontrast-Presets</span>
+        <span class="tag">4- oder 5-Reihen automatisch</span>
+      </div>
+    </div>
+    <div class="hero-card">
+      <h3>Uhren-Presets</h3>
+      <p>Wähle deine Uhr, um Zeilenanzahl, Farben und Kontraste automatisch anzupassen.</p>
+      <div id="preset-grid" class="preset-grid"></div>
+    </div>
+  </header>
 
-    <section>
-      <h2>Rows</h2>
-      <p>Choose a type and color for each row.</p>
+  <div class="container">
+    <section class="card">
+      <div class="section-head">
+        <h2>Zeilen</h2>
+        <p>Typ und Farbe pro Zeile. Für Rund-Uhren werden nur die sichtbaren Zeilen übertragen, trotzdem werden immer 5 Slots an die App geschickt, damit alle Plattformen stabil bleiben.</p>
+      </div>
       <div id="rows-form" class="rows-form">
         <div class="rowline">
           <label>Row 1
@@ -20,14 +38,7 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="0" value="#00ffff">
-            <select class="row-color-fallback" data-index="0" hidden>
-              <option value="#00ffff">Cyan</option>
-              <option value="#ffffff">White</option>
-              <option value="#aaaaaa">Light Gray</option>
-              <option value="#00ff00">Green</option>
-              <option value="#ff0000">Red</option>
-              <option value="#ffff00">Yellow</option>
-            </select>
+            <select class="row-color-fallback" data-index="0" hidden></select>
           </label>
         </div>
         <div class="rowline">
@@ -36,14 +47,7 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="1" value="#ffffff">
-            <select class="row-color-fallback" data-index="1" hidden>
-              <option value="#00ffff">Cyan</option>
-              <option value="#ffffff">White</option>
-              <option value="#aaaaaa">Light Gray</option>
-              <option value="#00ff00">Green</option>
-              <option value="#ff0000">Red</option>
-              <option value="#ffff00">Yellow</option>
-            </select>
+            <select class="row-color-fallback" data-index="1" hidden></select>
           </label>
         </div>
         <div class="rowline">
@@ -52,14 +56,7 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="2" value="#aaaaaa">
-            <select class="row-color-fallback" data-index="2" hidden>
-              <option value="#00ffff">Cyan</option>
-              <option value="#ffffff">White</option>
-              <option value="#aaaaaa">Light Gray</option>
-              <option value="#00ff00">Green</option>
-              <option value="#ff0000">Red</option>
-              <option value="#ffff00">Yellow</option>
-            </select>
+            <select class="row-color-fallback" data-index="2" hidden></select>
           </label>
         </div>
         <div class="rowline">
@@ -68,14 +65,7 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="3" value="#aaaaaa">
-            <select class="row-color-fallback" data-index="3" hidden>
-              <option value="#00ffff">Cyan</option>
-              <option value="#ffffff">White</option>
-              <option value="#aaaaaa">Light Gray</option>
-              <option value="#00ff00">Green</option>
-              <option value="#ff0000">Red</option>
-              <option value="#ffff00">Yellow</option>
-            </select>
+            <select class="row-color-fallback" data-index="3" hidden></select>
           </label>
         </div>
         <div class="rowline">
@@ -84,50 +74,49 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="4" value="#00ff00">
-            <select class="row-color-fallback" data-index="4" hidden>
-              <option value="#00ffff">Cyan</option>
-              <option value="#ffffff">White</option>
-              <option value="#aaaaaa">Light Gray</option>
-              <option value="#00ff00">Green</option>
-              <option value="#ff0000">Red</option>
-              <option value="#ffff00">Yellow</option>
-            </select>
+            <select class="row-color-fallback" data-index="4" hidden></select>
           </label>
         </div>
       </div>
     </section>
 
-    <section>
-      <h2>Formatting</h2>
+    <section class="card">
+      <div class="section-head">
+        <h2>Formatierung</h2>
+        <p>Alle Werte werden automatisch auf Pebble-kompatible Farben quantisiert.</p>
+      </div>
       <label><input type="checkbox" id="leadingZero" checked> Leading zero for time</label>
-      <div>
-        Date format:
+      <div class="inline-options">
+        <div>Date format:</div>
         <label><input type="radio" name="datefmt" value="0" checked> dd/mm</label>
         <label><input type="radio" name="datefmt" value="1"> mm/dd</label>
       </div>
-      <div>
-  Weekday language:
-  <label><input type="radio" name="wdlang" value="0" checked> German</label>
-  <label><input type="radio" name="wdlang" value="1"> English</label>
+      <div class="inline-options">
+        <div>Weekday language:</div>
+        <label><input type="radio" name="wdlang" value="0" checked> German</label>
+        <label><input type="radio" name="wdlang" value="1"> English</label>
       </div>
-      <div>
-        Temperature unit:
+      <div class="inline-options">
+        <div>Temperature unit:</div>
         <label><input type="radio" name="tempunit" value="C" checked> °C</label>
         <label><input type="radio" name="tempunit" value="F"> °F</label>
       </div>
-      <div>
-  Weather refresh (min):
-  <input type="number" id="weatherInt" value="30" min="5" max="180" inputmode="numeric">
+      <div class="inline-options">
+        <div>Weather refresh (min):</div>
+        <input type="number" id="weatherInt" value="30" min="5" max="180" inputmode="numeric">
       </div>
     </section>
 
-  <section id="bg-section">
-      <h2>Nightscout</h2>
-  <label>Nightscout URL <input type="url" id="bgUrl" placeholder="https://myns.example.com"></label>
-  <label>Timeout (min) <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
-  <label>BG Refresh (min) <input type="number" id="bgFetchInt" value="5" min="1" max="180" inputmode="numeric"></label>
-      <div>
-  CGM Unit:
+    <section class="card" id="bg-section">
+      <div class="section-head">
+        <h2>Nightscout</h2>
+        <p>BG-Refresh und Thresholds nur sichtbar, wenn eine Zeile als Nightscout-BG markiert ist.</p>
+      </div>
+      <label>Nightscout URL <input type="url" id="bgUrl" placeholder="https://myns.example.com"></label>
+      <label>Timeout (min) <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
+      <label>BG Refresh (min) <input type="number" id="bgFetchInt" value="5" min="1" max="180" inputmode="numeric"></label>
+      <div class="inline-options">
+        <div>CGM Unit:</div>
         <label><input type="radio" name="bgunit" value="mgdl" checked> mg/dL</label>
         <label><input type="radio" name="bgunit" value="mmol"> mmol/L</label>
       </div>
@@ -138,57 +127,39 @@
       <div class="colors">
         <label>Color Low
           <input type="color" id="colLow" value="#ff0000">
-          <select id="colLowFallback" hidden>
-            <option value="#ff0000">Red</option>
-            <option value="#ffff00">Yellow</option>
-            <option value="#00ff00">Green</option>
-            <option value="#00ffff">Cyan</option>
-            <option value="#ffffff">White</option>
-            <option value="#aaaaaa">Light Gray</option>
-          </select>
+          <select id="colLowFallback" hidden></select>
         </label>
         <label>Color In-range
           <input type="color" id="colIn" value="#00ff00">
-          <select id="colInFallback" hidden>
-            <option value="#00ff00">Green</option>
-            <option value="#ffff00">Yellow</option>
-            <option value="#ff0000">Red</option>
-            <option value="#00ffff">Cyan</option>
-            <option value="#ffffff">White</option>
-            <option value="#aaaaaa">Light Gray</option>
-          </select>
+          <select id="colInFallback" hidden></select>
         </label>
         <label>Color High
           <input type="color" id="colHigh" value="#ffff00">
-          <select id="colHighFallback" hidden>
-            <option value="#ffff00">Yellow</option>
-            <option value="#ff0000">Red</option>
-            <option value="#00ff00">Green</option>
-            <option value="#00ffff">Cyan</option>
-            <option value="#ffffff">White</option>
-            <option value="#aaaaaa">Light Gray</option>
-          </select>
+          <select id="colHighFallback" hidden></select>
         </label>
         <label>Ghost Color
           <input type="color" id="ghost" value="#555555">
-          <select id="ghostFallback" hidden>
-            <!-- Options populated by script to Pebble-compatible grays -->
-          </select>
+          <select id="ghostFallback" hidden></select>
         </label>
 	  </div>
     </section>
 
-    <div class="actions">
-      <button id="reload" class="secondary">Reload</button>
-      <button id="save">Save</button>
-      <button id="cancel" class="secondary">Cancel</button>
+    <div class="actions card">
+      <div class="action-info">
+        <p><strong>Tip:</strong> Bei Rund-Uhren bleiben Slots 1/5 der ersten und letzten Reihe ausgeblendet, die Daten werden aber weiterhin übertragen, damit alle Pebble-Apps stabil bleiben.</p>
+      </div>
+      <div class="action-buttons">
+        <button id="reload" class="secondary">Reload</button>
+        <button id="save">Save</button>
+        <button id="cancel" class="secondary">Cancel</button>
+      </div>
     </div>
 
-    <section id="color-legend">
-      <h2>Color Legend</h2>
-      <ul id="color-legend-list" style="list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:.5rem;"></ul>
+    <section class="card" id="color-legend">
+      <h2>Kompatible Farben</h2>
+      <p>Diese Palette wird 1:1 an alle Pebble-Modelle übergeben. Dunkle Grauwerte sichern Lesbarkeit auf B/W und Pebble 2.</p>
+      <ul id="color-legend-list" class="color-legend"></ul>
     </section>
-
   </div>
 
   <script src="script.js"></script>
