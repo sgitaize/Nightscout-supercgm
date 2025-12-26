@@ -19,14 +19,14 @@
       rows: 4,
       bw: false,
       pebble2: false,
-      description: '4 Reihen, kompakte Schrift und kontrastreiche Farben.',
+      description: '4 rows, strong contrast for the round display.',
       defaults: {
         rows: [
           { type: 1, color: '#FFFFFF' },
-          { type: 0, color: '#00FFFF' },
           { type: 5, color: '#00FF00' },
-          { type: 2, color: '#AAAAAA' },
-          { type: 3, color: '#AAAAAA' }
+          { type: 0, color: '#00FFFF' },
+          { type: 2, color: '#FFFF00' },
+          { type: 3, color: '#FFFFFF' }
         ],
         colors: { low: '#FF0000', in: '#00FF00', high: '#FFFF00', ghost: '#555555' }
       }
@@ -37,25 +37,25 @@
       rows: 5,
       bw: false,
       pebble2: false,
-      description: 'Farbdisplay, rechteckig, volle 5 Reihen.',
+      description: 'Full color with high-contrast accents on 5 rows.',
       defaults: {
         rows: [
-          { type: 0, color: '#00FFFF' },
           { type: 1, color: '#FFFFFF' },
-          { type: 2, color: '#AAAAAA' },
-          { type: 3, color: '#AAAAAA' },
-          { type: 5, color: '#00FF00' }
+          { type: 0, color: '#FF9900' },
+          { type: 5, color: '#00FF00' },
+          { type: 2, color: '#FFFF00' },
+          { type: 3, color: '#FFFFFF' }
         ],
         colors: { low: '#FF0000', in: '#00FF00', high: '#FFFF00', ghost: '#555555' }
       }
     },
     {
       id: 'diorite',
-      label: 'Pebble 2 (BW)',
+      label: 'Pebble 2 (B/W)',
       rows: 5,
       bw: true,
       pebble2: true,
-      description: 'Schwarzweiß mit erzwungen weißen Zeilen und mittlerem Ghost.',
+      description: 'Black/white only; colors forced to white text with mid-gray ghost.',
       defaults: {
         rows: [
           { type: 1, color: '#FFFFFF' },
@@ -69,11 +69,11 @@
     },
     {
       id: 'aplite',
-      label: 'Pebble Classic (BW)',
+      label: 'Pebble Classic (B/W)',
       rows: 5,
       bw: true,
       pebble2: false,
-      description: 'Schwarzweiß, hohe Lesbarkeit.',
+      description: 'Grayscale palette for strong readability.',
       defaults: {
         rows: [
           { type: 0, color: '#FFFFFF' },
