@@ -98,6 +98,7 @@ static void weather_deg_update_proc(Layer *layer, GContext *ctx);
 static void update_heart_rate(void);
 static GRect get_layout_bounds(void);
 static void main_window_appear(Window *window);
+static void app_focus_handler(bool in_focus);
 
 #if PBL_API_EXISTS(unobstructed_area_service_subscribe)
 static void unobstructed_change(AnimationProgress progress, void *context);
@@ -798,6 +799,14 @@ static void main_window_appear(Window *window) {
   draw_all_rows();
 }
 
+static void app_focus_handler(bool in_focus) {
+  if (!in_focus) {
+    return;
+  }
+  layout_rows();
+  draw_all_rows();
+}
+
 static void main_window_unload(Window *window) {
   for (int i = 0; i < ROWS; i++) {
     for (int c = 0; c < 5; c++) {
@@ -906,6 +915,7 @@ static void init(void) {
     .did_change = unobstructed_did_change
   }, NULL);
 #endif
+  app_focus_service_subscribe(app_focus_handler);
 
   // Messaging
   app_message_register_inbox_received(inbox_received_callback);
@@ -925,6 +935,7 @@ static void deinit(void) {
 #if PBL_API_EXISTS(unobstructed_area_service_unsubscribe)
   unobstructed_area_service_unsubscribe();
 #endif
+  app_focus_service_unsubscribe();
 
   fonts_unload_custom_font(s_font_dseg_30);
   if (s_font_dseg_30_reg) fonts_unload_custom_font(s_font_dseg_30_reg);
