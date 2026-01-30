@@ -96,6 +96,13 @@ static void draw_all_rows(void);
 static void trend_update_proc(Layer *layer, GContext *ctx);
 static void weather_deg_update_proc(Layer *layer, GContext *ctx);
 static void update_heart_rate(void);
+static GRect get_layout_bounds(void);
+static void main_window_appear(Window *window);
+
+#if PBL_API_EXISTS(unobstructed_area_service_subscribe)
+static void unobstructed_change(AnimationProgress progress, void *context);
+static void unobstructed_did_change(void *context);
+#endif
 
 static void update_heart_rate(void) {
 #if defined(PBL_HEALTH)
@@ -118,6 +125,18 @@ static void update_heart_rate(void) {
     s_hr_bpm = -1;
     s_hr_timestamp = 0;
   }
+}
+
+static GRect get_layout_bounds(void) {
+  Layer *window_layer = window_get_root_layer(s_main_window);
+  GRect bounds = layer_get_bounds(window_layer);
+#if PBL_API_EXISTS(unobstructed_area_service_get_unobstructed_bounds)
+  GRect unobstructed = unobstructed_area_service_get_unobstructed_bounds();
+  if (unobstructed.size.w > 0 && unobstructed.size.h > 0) {
+    bounds = unobstructed;
+  }
+#endif
+  return bounds;
 }
 
 // Persisted configuration cache
@@ -164,8 +183,7 @@ static void hatch_update_proc(Layer *layer, GContext *ctx) {
 // No-op helper removed; per-slot layering handles ghost
 
 static void layout_rows(void) {
-  Layer *window_layer = window_get_root_layer(s_main_window);
-  GRect bounds = layer_get_bounds(window_layer);
+  GRect bounds = get_layout_bounds();
   int16_t row_height = bounds.size.h / ROWS;
 #if defined(PBL_ROUND)
   // Compress row height to ~66% to reduce perceived spacing; center the block
@@ -178,6 +196,8 @@ static void layout_rows(void) {
 #endif
   int16_t slot_w = bounds.size.w / 5;
   int16_t left_pad = (bounds.size.w - slot_w * 5) / 2;
+  int16_t x_origin = bounds.origin.x;
+  int16_t y_origin = bounds.origin.y;
   int bg_index = -1;
   int weather_index = -1;
   for (int i = 0; i < ROWS; i++) {
@@ -187,8 +207,8 @@ static void layout_rows(void) {
   // On round, top/bottom rows show only middle 3 slots (1..3). Hide both outer slots.
   if ((i == 0 || i == ROWS-1) && (c == 0 || c == 4)) hide = true;
 #endif
-  int16_t y = y_offset + i * row_height + i * gap;
-  GRect frame = GRect(left_pad + c * slot_w, y, slot_w, row_height);
+  int16_t y = y_origin + y_offset + i * row_height + i * gap;
+  GRect frame = GRect(x_origin + left_pad + c * slot_w, y, slot_w, row_height);
       if (s_ghost_layers[i][c]) {
   layer_set_hidden(text_layer_get_layer(s_ghost_layers[i][c]), hide);
 #if defined(PBL_ROUND)
@@ -218,8 +238,8 @@ static void layout_rows(void) {
   if (s_bg_trend_layer) {
     if (bg_index >= 0) {
       // place trend on the right 40% of the BG row
-    int16_t y = y_offset + bg_index * row_height + bg_index * gap;
-  GRect frame = GRect(bounds.size.w * 3 / 5, y, bounds.size.w - (bounds.size.w * 3 / 5), row_height);
+    int16_t y = y_origin + y_offset + bg_index * row_height + bg_index * gap;
+  GRect frame = GRect(x_origin + bounds.size.w * 3 / 5, y, bounds.size.w - (bounds.size.w * 3 / 5), row_height);
       layer_set_hidden(s_bg_trend_layer, false);
       layer_set_frame(s_bg_trend_layer, frame);
     } else {
@@ -229,8 +249,8 @@ static void layout_rows(void) {
   if (s_weather_deg_layer) {
     if (weather_index >= 0) {
       // will be positioned precisely in draw_all_rows
-    int16_t y = y_offset + weather_index * row_height + weather_index * gap;
-  GRect frame = GRect(left_pad + slot_w * 4, y, slot_w, row_height);
+    int16_t y = y_origin + y_offset + weather_index * row_height + weather_index * gap;
+  GRect frame = GRect(x_origin + left_pad + slot_w * 4, y, slot_w, row_height);
   // Keep hidden on round (no degree dot there); rectangular will manage visibility in draw_all_rows
 #if defined(PBL_ROUND)
   layer_set_hidden(s_weather_deg_layer, true);
@@ -257,6 +277,17 @@ static void health_handler(HealthEventType event, void *context) {
   }
 #endif
 }
+
+#if PBL_API_EXISTS(unobstructed_area_service_subscribe)
+static void unobstructed_change(AnimationProgress progress, void *context) {
+  layout_rows();
+}
+
+static void unobstructed_did_change(void *context) {
+  layout_rows();
+  draw_all_rows();
+}
+#endif
 
 static void draw_all_rows(void) {
   time_t now = time(NULL);
@@ -419,8 +450,7 @@ static void draw_all_rows(void) {
         if (s_bg_trend_layer && s_bg_status == BG_STATUS_OK && s_bg_sgv >= 0) {
           s_bg_trend_color = color;
           // position overlay near the right
-          Layer *window_layer = window_get_root_layer(s_main_window);
-          GRect bounds = layer_get_bounds(window_layer);
+          GRect bounds = get_layout_bounds();
           int16_t row_h = bounds.size.h / ROWS;
 #if defined(PBL_ROUND)
           // Keep in sync with layout_rows()
@@ -430,6 +460,8 @@ static void draw_all_rows(void) {
 #endif
           int16_t slot_w = bounds.size.w / 5;
           int16_t left_pad = (bounds.size.w - slot_w * 5) / 2;
+          int16_t x_origin = bounds.origin.x;
+          int16_t y_origin = bounds.origin.y;
           int slot_index;
 #if defined(PBL_ROUND)
           // Rightmost slot (4)
@@ -437,15 +469,15 @@ static void draw_all_rows(void) {
 #else
           slot_index = 4;
 #endif
-          int16_t y_base = i * row_h;
+          int16_t y_base = y_origin + i * row_h;
 #if defined(PBL_ROUND)
-          y_base = y_off + i * row_h + i * gap;
+          y_base = y_origin + y_off + i * row_h + i * gap;
 #endif
           int16_t frame_h = row_h;
 #if defined(PBL_ROUND)
           frame_h = row_h - gap;
 #endif
-          GRect frame = GRect(left_pad + slot_index * slot_w, y_base, slot_w, frame_h);
+          GRect frame = GRect(x_origin + left_pad + slot_index * slot_w, y_base, slot_w, frame_h);
           layer_set_frame(s_bg_trend_layer, frame);
           layer_set_hidden(s_bg_trend_layer, false);
           layer_mark_dirty(s_bg_trend_layer);
@@ -514,14 +546,13 @@ static void draw_all_rows(void) {
   // Position and show degree overlay (small circle) only on rectangular screens.
 #if !defined(PBL_ROUND)
   if (s_weather_deg_layer) {
-    Layer *window_layer = window_get_root_layer(s_main_window);
-    GRect bounds = layer_get_bounds(window_layer);
+    GRect bounds = get_layout_bounds();
     int16_t row_h = bounds.size.h / ROWS;
     int16_t slot_w = bounds.size.w / 5;
     int16_t left_pad = (bounds.size.w - slot_w * 5) / 2;
     int deg_slot = 3; // slot before/with unit
-    int16_t y_base = i * row_h;
-    GRect frame = GRect(left_pad + deg_slot * slot_w, y_base, slot_w, row_h);
+    int16_t y_base = bounds.origin.y + i * row_h;
+    GRect frame = GRect(bounds.origin.x + left_pad + deg_slot * slot_w, y_base, slot_w, row_h);
     s_weather_deg_color = color;
     s_weather_unit_char = 0; // overlay draws only the dot
     layer_set_frame(s_weather_deg_layer, frame);
@@ -762,6 +793,11 @@ static void main_window_load(Window *window) {
   draw_all_rows();
 }
 
+static void main_window_appear(Window *window) {
+  layout_rows();
+  draw_all_rows();
+}
+
 static void main_window_unload(Window *window) {
   for (int i = 0; i < ROWS; i++) {
     for (int c = 0; c < 5; c++) {
@@ -855,6 +891,7 @@ static void init(void) {
   window_set_background_color(s_main_window, GColorBlack);
   window_set_window_handlers(s_main_window, (WindowHandlers) {
     .load = main_window_load,
+    .appear = main_window_appear,
     .unload = main_window_unload
   });
   window_stack_push(s_main_window, true);
@@ -863,6 +900,12 @@ static void init(void) {
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   battery_state_service_subscribe(battery_handler);
   health_service_events_subscribe(health_handler, NULL);
+#if PBL_API_EXISTS(unobstructed_area_service_subscribe)
+  unobstructed_area_service_subscribe((UnobstructedAreaHandlers) {
+    .change = unobstructed_change,
+    .did_change = unobstructed_did_change
+  }, NULL);
+#endif
 
   // Messaging
   app_message_register_inbox_received(inbox_received_callback);
@@ -879,6 +922,9 @@ static void deinit(void) {
   tick_timer_service_unsubscribe();
   battery_state_service_unsubscribe();
   health_service_events_unsubscribe();
+#if PBL_API_EXISTS(unobstructed_area_service_unsubscribe)
+  unobstructed_area_service_unsubscribe();
+#endif
 
   fonts_unload_custom_font(s_font_dseg_30);
   if (s_font_dseg_30_reg) fonts_unload_custom_font(s_font_dseg_30_reg);

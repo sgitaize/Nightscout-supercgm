@@ -7,10 +7,10 @@
   "pebble": {
     "displayName": "supercgm-ns",
     "uuid": "b8c0b2a6-2a7a-4d9e-8a1a-3f4c7b4a9e10",
-  "sdkVersion": "3",
+    "sdkVersion": "3",
     "projectType": "native",
-  "enableMultiJS": true,
-  "screenshot": "resources/screenshot/screenshotsupercgm.png",
+    "enableMultiJS": true,
+    "screenshot": "resources/screenshot/screenshotsupercgm.png",
     "resources": {
       "media": [
         {
@@ -72,26 +72,52 @@
       ]
     },
     "messageKeys": [
-      "ROW1_TYPE", "ROW2_TYPE", "ROW3_TYPE", "ROW4_TYPE", "ROW5_TYPE",
-      "ROW1_COLOR", "ROW2_COLOR", "ROW3_COLOR", "ROW4_COLOR", "ROW5_COLOR",
+      "ROW1_TYPE",
+      "ROW2_TYPE",
+      "ROW3_TYPE",
+      "ROW4_TYPE",
+      "ROW5_TYPE",
+      "ROW1_COLOR",
+      "ROW2_COLOR",
+      "ROW3_COLOR",
+      "ROW4_COLOR",
+      "ROW5_COLOR",
       "GHOST_COLOR",
       "SHOW_LEADING_ZERO",
-      "DATE_FORMAT", "WEEKDAY_LANG", "TEMP_UNIT",
-  "BG_URL", "BG_TIMEOUT_MIN", "BG_FETCH_INTERVAL_MIN", "BG_THRESH_LOW", "BG_THRESH_HIGH",
+      "DATE_FORMAT",
+      "WEEKDAY_LANG",
+      "TEMP_UNIT",
+      "BG_URL",
+      "BG_TIMEOUT_MIN",
+      "BG_FETCH_INTERVAL_MIN",
+      "BG_THRESH_LOW",
+      "BG_THRESH_HIGH",
       "WEATHER_INTERVAL_MIN",
-      "COLOR_LOW", "COLOR_HIGH", "COLOR_IN_RANGE",
-      "REQUEST_WEATHER", "REQUEST_BG",
+      "COLOR_LOW",
+      "COLOR_HIGH",
+      "COLOR_IN_RANGE",
+      "REQUEST_WEATHER",
+      "REQUEST_BG",
       "WEATHER_TEMP",
-      "BG_SGV", "BG_TIMESTAMP", "BG_STATUS", "BG_UNIT", "BG_TREND"
+      "BG_SGV",
+      "BG_TIMESTAMP",
+      "BG_STATUS",
+      "BG_UNIT",
+      "BG_TREND"
     ],
     "capabilities": [
       "configurable",
       "location",
       "health"
     ],
-  "watchapp": {
+    "watchapp": {
       "watchface": true
     },
-  "targetPlatforms": ["aplite","basalt","chalk","diorite"]
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite"
+    ]
   }
 }
