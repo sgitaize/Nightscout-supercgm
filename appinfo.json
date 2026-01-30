@@ -1,0 +1,98 @@
+{
+  "uuid": "b8c0b2a6-2a7a-4d9e-8a1a-3f4c7b4a9e10",
+  "shortName": "supercgm-ns",
+  "longName": "Nightscout Supercgm",
+  "companyName": "sgitaize",
+  "versionLabel": "1.5",
+  "sdkVersion": "2",
+  "watchapp": {
+    "watchface": true
+  },
+  "capabilities": [
+    "configurable",
+    "location",
+    "health"
+  ],
+  "appKeys": {
+    "ROW1_TYPE": 0,
+    "ROW2_TYPE": 1,
+    "ROW3_TYPE": 2,
+    "ROW4_TYPE": 3,
+    "ROW5_TYPE": 4,
+    "ROW1_COLOR": 5,
+    "ROW2_COLOR": 6,
+    "ROW3_COLOR": 7,
+    "ROW4_COLOR": 8,
+    "ROW5_COLOR": 9,
+    "GHOST_COLOR": 10,
+    "SHOW_LEADING_ZERO": 11,
+    "DATE_FORMAT": 12,
+    "WEEKDAY_LANG": 13,
+    "TEMP_UNIT": 14,
+    "BG_URL": 15,
+    "BG_TIMEOUT_MIN": 16,
+    "BG_FETCH_INTERVAL_MIN": 17,
+    "BG_THRESH_LOW": 18,
+    "BG_THRESH_HIGH": 19,
+    "WEATHER_INTERVAL_MIN": 20,
+    "COLOR_LOW": 21,
+    "COLOR_HIGH": 22,
+    "COLOR_IN_RANGE": 23,
+    "REQUEST_WEATHER": 24,
+    "REQUEST_BG": 25,
+    "WEATHER_TEMP": 26,
+    "BG_SGV": 27,
+    "BG_TIMESTAMP": 28,
+    "BG_STATUS": 29,
+    "BG_UNIT": 30,
+    "BG_TREND": 31
+  },
+  "targetPlatforms": [
+    "aplite",
+    "basalt"
+  ],
+  "resources": {
+    "media": [
+      {
+        "type": "font",
+        "name": "FONT_DSEG_30_BOLD",
+        "file": "fonts/DSEG14Classic-Bold.ttf"
+      },
+      {
+        "type": "font",
+        "name": "FONT_DSEG_30_REG",
+        "file": "fonts/DSEG14Classic-Regular.ttf"
+      },
+      {
+        "type": "font",
+        "name": "FONT_DSEG_29_BOLD",
+        "file": "fonts/DSEG14Classic-Bold.ttf"
+      },
+      {
+        "type": "font",
+        "name": "FONT_DSEG_29_REG",
+        "file": "fonts/DSEG14Classic-Regular.ttf"
+      },
+      {
+        "type": "font",
+        "name": "FONT_DSEG_25_BOLD",
+        "file": "fonts/DSEG14Classic-Bold.ttf"
+      },
+      {
+        "type": "font",
+        "name": "FONT_DSEG_25_REG",
+        "file": "fonts/DSEG14Classic-Regular.ttf"
+      },
+      {
+        "type": "font",
+        "name": "FONT_DSEG_26_BOLD",
+        "file": "fonts/DSEG14Classic-Bold.ttf"
+      },
+      {
+        "type": "font",
+        "name": "FONT_DSEG_26_REG",
+        "file": "fonts/DSEG14Classic-Regular.ttf"
+      }
+    ]
+  }
+}
