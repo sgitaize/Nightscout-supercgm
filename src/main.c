@@ -32,9 +32,6 @@ static GColor s_bg_trend_color;
 static Layer *s_weather_deg_layer;
 static GColor s_weather_deg_color;
 static char s_weather_unit_char = 0; // 'C' or 'F'
-#if defined(PBL_PLATFORM_APLITE)
-static AppTimer *s_redraw_timer;
-#endif
 // Persistent 1-char + NUL buffers for each foreground slot
 static char s_slot_text[ROWS][5][2];
 static GFont s_font_dseg_30;       // Bold (foreground)
@@ -103,9 +100,6 @@ static GRect get_layout_bounds(void);
 static void main_window_appear(Window *window);
 static void app_focus_handler(bool in_focus);
 static void force_redraw_layers(void);
-#if defined(PBL_PLATFORM_APLITE)
-static void periodic_redraw(void *context);
-#endif
 
 #if PBL_API_EXISTS(unobstructed_area_service_subscribe)
 static void unobstructed_change(AnimationProgress progress, void *context);
@@ -837,13 +831,6 @@ static void force_redraw_layers(void) {
   }
 }
 
-#if defined(PBL_PLATFORM_APLITE)
-static void periodic_redraw(void *context) {
-  force_redraw_layers();
-  s_redraw_timer = app_timer_register(1000, periodic_redraw, NULL);
-}
-#endif
-
 static void main_window_unload(Window *window) {
   for (int i = 0; i < ROWS; i++) {
     for (int c = 0; c < 5; c++) {
@@ -953,9 +940,6 @@ static void init(void) {
   }, NULL);
 #endif
   app_focus_service_subscribe(app_focus_handler);
-#if defined(PBL_PLATFORM_APLITE)
-  s_redraw_timer = app_timer_register(1000, periodic_redraw, NULL);
-#endif
 
   // Messaging
   app_message_register_inbox_received(inbox_received_callback);
@@ -976,12 +960,6 @@ static void deinit(void) {
   unobstructed_area_service_unsubscribe();
 #endif
   app_focus_service_unsubscribe();
-#if defined(PBL_PLATFORM_APLITE)
-  if (s_redraw_timer) {
-    app_timer_cancel(s_redraw_timer);
-    s_redraw_timer = NULL;
-  }
-#endif
 
   fonts_unload_custom_font(s_font_dseg_30);
   if (s_font_dseg_30_reg) fonts_unload_custom_font(s_font_dseg_30_reg);
