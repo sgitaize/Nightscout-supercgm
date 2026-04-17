@@ -93,8 +93,8 @@
       </div>
       <div class="inline-options">
         <div>Weekday language:</div>
-        <label><input type="radio" name="wdlang" value="0" checked> German</label>
-        <label><input type="radio" name="wdlang" value="1"> English</label>
+          <label><input type="radio" name="wdlang" value="0"> German</label>
+          <label><input type="radio" name="wdlang" value="1" checked> English</label>
       </div>
       <div class="inline-options">
         <div>Temperature unit:</div>
@@ -143,6 +143,37 @@
         </label>
 	  </div>
     </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h2>Shake to Reveal</h2>
+        <p>Shake or tap the watch to show extra info for 5 seconds.</p>
+      </div>
+      <label>Content
+        <select id="shakeRowType">
+          <option value="6">Steps</option>
+          <option value="7">Heart Rate</option>
+          <option value="4">Battery</option>
+          <option value="5">BG / CGM</option>
+          <option value="8">BG Time (last reading)</option>
+          <option value="9">IOB – Insulin on Board</option>
+        </select>
+      </label>
+      <label>Color
+        <input type="color" id="shakeRowColor" value="#ffffff">
+        <select id="shakeRowColorFallback" hidden></select>
+      </label>
+    </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Alerts &amp; Behaviour</h2>
+          <p>Vibration alerts fire at most once per 10 minutes. Disconnect from phone triggers one short buzz automatically.</p>
+        </div>
+        <label><input type="checkbox" id="vibeOnLow"> Vibrate when BG is <strong>low</strong> (3 short pulses)</label>
+        <label><input type="checkbox" id="vibeOnHigh"> Vibrate when BG is <strong>high</strong> (2 short pulses)</label>
+        <label><input type="checkbox" id="backlightOnShake" checked> Turn on backlight when shaking the watch</label>
+      </section>
 
     <div class="actions card">
       <div class="action-info">

@@ -28,7 +28,10 @@ var keys = require('message_keys');
     ],
     showLeadingZero: true,
     dateFormat: 0,
-    weekdayLang: 0
+    weekdayLang: 1,  // 0=German, 1=English (matches C init_defaults)
+    vibeOnLow: false,
+    vibeOnHigh: false,
+    backlightOnShake: true
   };
 
   function hexToInt(hex) {
@@ -38,7 +41,7 @@ var keys = require('message_keys');
   var isBWPlatform = false;
   var isPebble2 = false;
   var bwPalette = ['#000000','#555555','#777777','#AAAAAA','#FFFFFF'];
-  var BG_STATUS = { OK: 0, NO_DATA: 1, NO_CONN: 2 };
+  var BG_STATUS = { OK: 0, NO_DATA: 1, NO_CONN: 2, OLD: 3 };
 
   function quantize(hex) {
     var palette = ['#000000','#555555','#AAAAAA','#FFFFFF','#FF0000','#FFFF00','#00FF00','#00FFFF','#0000FF','#FF00FF','#FF9900','#8000FF'];
@@ -148,9 +151,17 @@ var keys = require('message_keys');
       'TEMP_UNIT': config.tempUnit === 'F' ? 1 : 0,
       'WEATHER_INTERVAL_MIN': config.weatherIntervalMin,
       'BG_TIMEOUT_MIN': config.bgTimeoutMin,
+      'BG_FETCH_INTERVAL_MIN': Math.max(1, parseInt(config.bgFetchIntervalMin || 5, 10)),
       'BG_UNIT': config.bgUnit === 'mmol' ? 1 : 0
     };
-    send(rowsDict, function(){ send(colorsDict, function(){ send(basicDict); }); });
+    send(rowsDict, function(){ send(colorsDict, function(){ send(basicDict, function(){
+      // Shake overlay config
+      var shakeDict = {
+        'SHAKE_ROW_TYPE':  config.shakeRowType  !== undefined ? config.shakeRowType  : 6,
+        'SHAKE_ROW_COLOR': hexToInt(quantize(config.shakeRowColor || '#FFFFFF'))
+      };
+      send(shakeDict);
+    }); }); });
   }
 
   // Weather fetch with caching and throttling
@@ -287,12 +298,14 @@ var keys = require('message_keys');
         }
         var json = JSON.parse(this.responseText);
         // responses can vary; handle Nightscout /pebble (json.bgs[0]) and others
-        var sgv = null, ts = null, trend = null;
+        var sgv = null, ts = null, trend = null, iob = null;
         if (json && Array.isArray(json.bgs) && json.bgs.length > 0) {
           var b = json.bgs[0];
           sgv = parseInt(b.sgv || b.glucose || b.value, 10);
           ts = parseInt((b.datetime || b.date || b.mills || b.timestamp || 0), 10);
           trend = b.direction || b.trend || null;
+          var rawIob = parseFloat(b.iob);
+          if (isFinite(rawIob)) iob = Math.round(rawIob * 100);
         } else if (Array.isArray(json) && json.length > 0) {
           sgv = parseInt(json[0].sgv || json[0].glucose || json[0].value, 10);
           ts = parseInt((json[0].datetime || json[0].date || json[0].mills || json[0].timestamp || 0), 10);
@@ -306,23 +319,30 @@ var keys = require('message_keys');
           ts = Math.floor(ts / 1000);
         }
         if (isFinite(sgv)) {
+          var nowSec = Math.floor(Date.now() / 1000);
+          var bgTs = ts || nowSec;
+          var ageSec = nowSec - bgTs;
+          var fetchIntervalSec = Math.max(1, parseInt(config.bgFetchIntervalMin || 5, 10)) * 60;
+          var status = (ageSec > fetchIntervalSec * 2) ? BG_STATUS.OLD : BG_STATUS.OK;
           // Map trend to a compact arrow string for watch to display
           var arrow = '';
           var dir = (trend||'').toLowerCase();
-          if (dir.indexOf('doubleup')>=0) arrow='↑↑';
-          else if (dir.indexOf('singleup')>=0 || dir==='up') arrow='↑';
-          else if (dir.indexOf('fortyfiveup')>=0) arrow='↗';
-          else if (dir.indexOf('flat')>=0) arrow='→';
-          else if (dir.indexOf('fortyfivedown')>=0) arrow='↘';
-          else if (dir.indexOf('singledown')>=0 || dir==='down') arrow='↓';
-          else if (dir.indexOf('doubledown')>=0) arrow='↓↓';
+          if (dir.indexOf('doubleup')>=0) arrow='^^';
+          else if (dir.indexOf('singleup')>=0 || dir==='up') arrow='^';
+          else if (dir.indexOf('fortyfiveup')>=0) arrow='^>';
+          else if (dir.indexOf('flat')>=0) arrow='-';
+          else if (dir.indexOf('fortyfivedown')>=0) arrow='>v';
+          else if (dir.indexOf('singledown')>=0 || dir==='down') arrow='v';
+          else if (dir.indexOf('doubledown')>=0) arrow='vv';
 
-          sendStatus(BG_STATUS.OK, {
+          var extras = {
             'BG_SGV': sgv,
-            'BG_TIMESTAMP': ts || Math.floor(Date.now()/1000),
+            'BG_TIMESTAMP': bgTs,
             'BG_TREND': arrow,
             'BG_UNIT': (config.bgUnit === 'mmol' ? 1 : 0)
-          });
+          };
+          if (iob !== null) extras['BG_IOB'] = iob;
+          sendStatus(status, extras);
         } else {
           sendStatus(BG_STATUS.NO_DATA);
         }
@@ -394,7 +414,7 @@ var keys = require('message_keys');
   var isBW = isBWPlatform || (platform === 'aplite' || platform === 'diorite');
   var isRound = (platform === 'chalk');
   var rows = isRound ? 4 : 5;
-    var url = 'https://supercgm-config.aize-it.de/config/index.html' +
+    var url = 'https://supercgm-config.aize-it.de/config20/index.html' +
       '?platform=' + encodeURIComponent(platform) +
       '&bw=' + (isBW ? '1' : '0') +
       '&rows=' + rows +
