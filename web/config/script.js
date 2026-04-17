@@ -275,7 +275,7 @@
       btn.className = 'preset-card' + (p.id === state.presetId ? ' active' : '');
       btn.setAttribute('type','button');
       btn.setAttribute('data-preset', p.id);
-      btn.innerHTML = '<div class="preset-label">'+p.label+'</div><div class="preset-desc">'+p.description+'</div><div class="preset-meta">'+(p.rows)+' Reihen · '+(p.bw?'SW':'Farbe')+'</div>';
+        btn.innerHTML = '<div class="preset-label">'+p.label+'</div><div class="preset-desc">'+p.description+'</div><div class="preset-meta">'+(p.rows)+' Rows · '+(p.bw?'B/W':'Color')+'</div>';
       btn.onclick = function(){
         selectPreset(p.id);
         buildRowsForm(true);
@@ -454,7 +454,12 @@
         ghost: ghost
       },
       rows: rows,
-      preset: state.presetId
+      preset: state.presetId,
+      shakeRowType: parseInt(byId('shakeRowType').value, 10),
+      shakeRowColor: byId('shakeRowColor').value || '#ffffff',
+      vibeOnLow:        byId('vibeOnLow').checked,
+      vibeOnHigh:       byId('vibeOnHigh').checked,
+      backlightOnShake: byId('backlightOnShake').checked
     };
     payload = applyPebble2Colors(payload);
     try { localStorage.setItem('supercgm_config', JSON.stringify(payload)); } catch(e) {}
@@ -508,6 +513,11 @@
       applyColorValue('colIn', (cfg.colors && cfg.colors.in) || state.defaultBgColors.in);
       applyColorValue('colHigh', (cfg.colors && cfg.colors.high) || state.defaultBgColors.high);
       applyColorValue('ghost', (cfg.colors && cfg.colors.ghost) || state.defaultBgColors.ghost);
+      if (byId('shakeRowType') && cfg.shakeRowType !== undefined) byId('shakeRowType').value = String(cfg.shakeRowType);
+      if (byId('shakeRowColor') && cfg.shakeRowColor) { byId('shakeRowColor').value = cfg.shakeRowColor; }
+      if (byId('vibeOnLow'))        byId('vibeOnLow').checked        = !!cfg.vibeOnLow;
+      if (byId('vibeOnHigh'))       byId('vibeOnHigh').checked       = !!cfg.vibeOnHigh;
+      if (byId('backlightOnShake')) byId('backlightOnShake').checked = cfg.backlightOnShake !== false;
       var form = byId('rows-form');
       var typeSelects = form.querySelectorAll('select.row-type');
       var colorInputs = form.querySelectorAll('input.row-color');

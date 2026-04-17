@@ -2,5 +2,11 @@
 .*
 !.gitignore
 
+# FTP credentials – never commit!
+.ftpconfig
+
+# FTP deploy script – never commit!
+deploy-config.sh
+
 # Ignore build directory
 build/

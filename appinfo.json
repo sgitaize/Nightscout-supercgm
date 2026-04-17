@@ -3,8 +3,8 @@
   "shortName": "supercgm-ns",
   "longName": "Nightscout Supercgm",
   "companyName": "sgitaize",
-  "versionLabel": "1.5",
-  "sdkVersion": "2",
+  "versionLabel": "2.0",
+  "sdkVersion": "3",
   "watchapp": {
     "watchface": true
   },
@@ -45,11 +45,19 @@
     "BG_TIMESTAMP": 28,
     "BG_STATUS": 29,
     "BG_UNIT": 30,
-    "BG_TREND": 31
+    "BG_TREND": 31,
+    "SHAKE_ROW_TYPE": 32,
+    "SHAKE_ROW_COLOR": 33,
+    "VIBE_ON_LOW": 34,
+    "VIBE_ON_HIGH": 35,
+    "BACKLIGHT_ON_SHAKE": 36,
+    "BG_IOB": 37
   },
   "targetPlatforms": [
     "aplite",
-    "basalt"
+    "basalt",
+    "chalk",
+    "diorite"
   ],
   "resources": {
     "media": [
