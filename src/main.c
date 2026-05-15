@@ -589,6 +589,13 @@ static void draw_all_rows(void) {
       row_type = (RowType)s_shake_row_types[i];
     }
 
+    // Hide degree overlay by default; only show if this row is weather
+#if !defined(PBL_ROUND)
+    if (s_weather_deg_layer) {
+      layer_set_hidden(s_weather_deg_layer, true);
+    }
+#endif
+
   switch (row_type) {
       case ROW_TYPE_TIME:
         // Expect s_time like HH:MM (5 chars)
