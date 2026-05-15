@@ -61,7 +61,6 @@ Configurable content:
 | Basalt (Pebble Time) | Color | 5 |
 | Chalk (Pebble Time Round) | Color, round | 4 |
 | Gabbro (Pebble Round 2) | Color, round | 5 |
-| Flint (new rectangular) | Color | 5 |
 | Emery (Pebble Time 2) | Color | 5 |
 | Aplite (Pebble / Pebble Steel) | B/W | 5 |
 | Diorite (Pebble 2) | 4-level grayscale | 5 |
