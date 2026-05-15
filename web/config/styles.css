@@ -8,6 +8,18 @@
   --accent:#6ae3ff;
   --accent-2:#7df9d9;
 }
+@font-face {
+  font-family: 'DSEG14Web';
+  src: url('fonts/DSEG14Classic-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'DSEG14Web';
+  src: url('fonts/DSEG14Classic-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
 html, body { margin:0; padding:0; background:radial-gradient(circle at 20% 20%, #1a2336, #0b1019 40%), var(--bg); color:var(--fg); font:16px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial; min-height:100%; }
 a { color: var(--accent); }
 
@@ -57,6 +69,14 @@ button + button { margin-left: .4rem; }
 .color-legend { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:.5rem; }
 
 .actions { display:flex; justify-content:space-between; gap:1rem; align-items:center; margin-top:1rem; }
+
+.ghost-density-row { display:flex; align-items:center; gap:.75rem; margin:.5rem 0; flex-wrap:wrap; }
+.ghost-density-slider { display:flex; align-items:center; gap:.5rem; flex:1; min-width:160px; }
+.ghost-density-slider input[type=range] { flex:1; accent-color:var(--accent); }
+#ghostDensityValue { font-size:.85rem; color:var(--accent); min-width:4.5rem; }
+.ghost-preview-wrap { margin:.5rem 0 .25rem; }
+.ghost-preview-head { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
+#previewModeToggle { padding:.35rem .65rem; border-radius:8px; font-size:.82rem; }
 .action-info { color:var(--muted); }
 .action-buttons { display:flex; gap:.5rem; }
 

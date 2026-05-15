@@ -160,6 +160,21 @@
           <select id="ghostFallback" hidden></select>
         </label>
 	    <label><input type="checkbox" id="showGhostGrid" checked> <span id="showGhostGridLabel">Show ghost background grid</span></label>
+	    <div class="ghost-density-row">
+	      <span id="ghostDensityLabel">Ghost dot density</span>
+	      <div class="ghost-density-slider">
+	        <input type="range" id="ghostDensity" min="1" max="5" value="3" step="1">
+	        <span id="ghostDensityValue">medium</span>
+	      </div>
+	    </div>
+	  </div>
+	  <div class="ghost-preview-wrap">
+      <div class="ghost-preview-head">
+        <div id="ghostPreviewTitle" style="font-size:.82rem; color:var(--muted); margin:.4rem 0 .3rem;">Preview</div>
+        <button type="button" id="previewModeToggle" class="secondary">Show shake preview</button>
+      </div>
+      <div id="previewModeState" style="font-size:.8rem; color:var(--accent); margin:0 0 .35rem;">Main rows</div>
+	    <canvas id="ghostPreviewCanvas" width="144" height="168" style="display:block; border-radius:6px; image-rendering:pixelated; cursor:default;"></canvas>
 	  </div>
     </section>
 

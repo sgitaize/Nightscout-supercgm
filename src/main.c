@@ -57,6 +57,7 @@ static GColor s_ghost_color;
 static RowType s_row_types[ROWS];
 static int8_t s_shake_row_types[ROWS];
 static bool s_show_ghost_grid = true;
+static int s_ghost_density = 3; // 1=sparsest ... 5=densest
 static bool s_show_leading_zero = true;
 static int s_date_format = 0; // 0: dd/mm, 1: mm/dd
 static int s_weekday_lang = 1; // 0: de, 1: en
@@ -238,19 +239,55 @@ static void load_config_cache(void);
 static void connection_handler(bool connected);
 static void check_bg_alerts(void);
 
-// Hatch overlay: darkens ghost "8" on B/W displays via diagonal pattern
+static bool find_hatch_slot(Layer *layer, int *out_row, int *out_col) {
+  for (int i = 0; i < ROWS; i++) {
+    for (int c = 0; c < 5; c++) {
+      if (s_ghost_hatch_layers[i][c] == layer) {
+        if (out_row) *out_row = i;
+        if (out_col) *out_col = c;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Draw ghost 7-segment dot skeleton. Density 1 (sparse) to 5 (dense), all platforms.
 static void hatch_update_proc(Layer *layer, GContext *ctx) {
-#if defined(PBL_BW)
   GRect b = layer_get_bounds(layer);
-  graphics_context_set_stroke_color(ctx, GColorBlack);
+  int row = -1, col = -1;
+  if (!find_hatch_slot(layer, &row, &col)) return;
+  (void)row;
+  (void)col;
+
+  static const int DENSITY_STEP[5] = {8, 6, 4, 3, 2};
+  int d = s_ghost_density;
+  if (d < 1) d = 1;
+  if (d > 5) d = 5;
+  int step = DENSITY_STEP[d - 1];
+
+  graphics_context_set_stroke_color(ctx, s_ghost_color);
   graphics_context_set_stroke_width(ctx, 1);
-  // 50% checkerboard: every other pixel black → appears mid-gray
-  for (int16_t x = b.origin.x; x < b.origin.x + b.size.w; x++)
-    for (int16_t y = b.origin.y; y < b.origin.y + b.size.h; y++)
-      if ((x + y) & 1) graphics_draw_pixel(ctx, GPoint(x, y));
-#else
-  (void)layer; (void)ctx;
-#endif
+
+  int16_t x0 = b.origin.x + b.size.w / 5;
+  int16_t x1 = b.origin.x + b.size.w - b.size.w / 5 - 1;
+  int16_t y0 = b.origin.y + b.size.h / 7;
+  int16_t y1 = b.origin.y + b.size.h - b.size.h / 7 - 1;
+  int16_t ym = (int16_t)((y0 + y1) / 2);
+
+  for (int16_t x = x0; x <= x1; x += step) {
+    graphics_draw_pixel(ctx, GPoint(x, y0));
+    graphics_draw_pixel(ctx, GPoint(x, ym));
+    graphics_draw_pixel(ctx, GPoint(x, y1));
+  }
+  for (int16_t y = y0 + step; y <= ym - step; y += step) {
+    graphics_draw_pixel(ctx, GPoint(x0, y));
+    graphics_draw_pixel(ctx, GPoint(x1, y));
+  }
+  for (int16_t y = ym + step; y <= y1 - step; y += step) {
+    graphics_draw_pixel(ctx, GPoint(x0, y));
+    graphics_draw_pixel(ctx, GPoint(x1, y));
+  }
 }
 
 // Shake mode helpers
@@ -354,7 +391,10 @@ static void layout_rows(void) {
   int16_t y = y_origin + y_offset + i * row_height + i * gap;
   GRect frame = GRect(x_origin + left_pad + c * slot_w, y, slot_w, row_height);
       if (s_ghost_layers[i][c]) {
-  layer_set_hidden(text_layer_get_layer(s_ghost_layers[i][c]), hide || !s_show_ghost_grid);
+  // Ghost TextLayer always hidden; hatch layer draws the dots on all platforms.
+  bool ghost_hide = true;
+  (void)(hide || !s_show_ghost_grid);
+  layer_set_hidden(text_layer_get_layer(s_ghost_layers[i][c]), ghost_hide);
 #if defined(PBL_ROUND)
   GRect f2 = GRect(frame.origin.x, frame.origin.y, frame.size.w, frame.size.h-1);
   layer_set_frame(text_layer_get_layer(s_ghost_layers[i][c]), f2);
@@ -781,6 +821,7 @@ static void draw_all_rows(void) {
       // Prepare persistent buffer for this slot
       s_slot_text[i][c][0] = slots[c];
       s_slot_text[i][c][1] = 0;
+      if (s_ghost_hatch_layers[i][c]) layer_mark_dirty(s_ghost_hatch_layers[i][c]);
       // Ghost always "8"
       if (s_ghost_layers[i][c]) {
         text_layer_set_text(s_ghost_layers[i][c], "8");
@@ -924,9 +965,20 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
   for (int i = 0; i < ROWS; i++) {
     for (int c = 0; c < 5; c++) {
       if (s_ghost_layers[i][c]) text_layer_set_text_color(s_ghost_layers[i][c], s_ghost_color);
+      if (s_ghost_hatch_layers[i][c]) layer_mark_dirty(s_ghost_hatch_layers[i][c]);
     }
   }
   config_changed = true;
+  }
+
+  if ((t = dict_find(iter, MESSAGE_KEY_GHOST_DENSITY))) {
+    s_ghost_density = (int)t->value->int32;
+    if (s_ghost_density < 1) s_ghost_density = 1;
+    if (s_ghost_density > 5) s_ghost_density = 5;
+    for (int i = 0; i < ROWS; i++)
+      for (int c = 0; c < 5; c++)
+        if (s_ghost_hatch_layers[i][c]) layer_mark_dirty(s_ghost_hatch_layers[i][c]);
+    config_changed = true;
   }
 
   // Row type/color config
@@ -1001,7 +1053,7 @@ static void main_window_load(Window *window) {
 #if defined(PBL_PLATFORM_APLITE)
   text_layer_set_text_color(s_ghost_layers[i][c], GColorWhite);
 #endif
-      text_layer_set_text(s_ghost_layers[i][c], "8");
+          text_layer_set_text(s_ghost_layers[i][c], "8");
   if (s_font_dseg_30_reg) text_layer_set_font(s_ghost_layers[i][c], s_font_dseg_30_reg);
       layer_add_child(window_layer, text_layer_get_layer(s_ghost_layers[i][c]));
   // Hatch overlay above ghost, below foreground

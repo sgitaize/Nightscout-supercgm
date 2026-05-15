@@ -24,8 +24,11 @@ About **90 % of the code was developed collaboratively with GitHub Copilot (Clau
 - **Customizable rows (per row choose one):**  
   Weather · Time · Date · Weekday · Battery · Nightscout BG · Steps · Heart Rate · BG Time · BG Delta · Rain next 3h
 - **Per-row color customization**, plus in-range / high / low BG colors and ghost grid color
-- **Improved color UX in config:** native color picker + live swatch preview + readable color labels
-- **Ghost grid contrast** — DarkGray on color displays; B/W platforms (Aplite, Diorite) use a 50 % checkerboard hatch overlay for a natural mid-gray look
+- **Ghost rendering tuned per platform** — color platforms use a visible ghost color; Aplite uses a subtle dotted skeleton; Diorite uses a visible grayscale ghost setting
+- **Ghost density control** — configurable 1..5 dot density for the ghost background
+- **Improved color UX in config:** native color picker + fallback palettes + live swatch preview + readable color labels
+- **Live config simulator:** shows the selected watch shape, configured row types, row colors, sample values, ghost density, and a main/shake preview toggle
+- **DSEG-based preview fonts** — the config simulator renders much closer to the actual watchface font than a generic monospace fallback
 - **Phone-side background fetch** for Nightscout BG (manual interval or timestamp-synced mode)
 - **Weather via Open-Meteo** (no API key needed, supports °C/°F) + rain probability for next 3 hours
 - **Persistent storage** on watch and phone (survives restarts)
@@ -47,6 +50,7 @@ Configurable content:
 - **BG Time** — time of last Nightscout reading
 - **BG Delta** — signed delta from Nightscout (`bgdelta`, e.g. +6 / -4)
 - **Rain next 3h** — rain probability forecast for your location
+- The config simulator also has a dedicated **Shake preview** button so the second level can be checked before syncing to the watch.
 
 ---
 
@@ -67,9 +71,18 @@ Configurable content:
 ## ⚙️ Configuration
 
 Open the watchface settings from the Pebble/Rebble phone app.  
-The settings page (`/config20`) adapts to the platform (row count, B/W palette).  
+The settings page (`/config20`) adapts to the platform (row count, B/W palette, ghost visibility, and preview layout).  
 Default language is **English** with an in-page **English/German language chooser**.
 Presets include legacy models plus **Time 2** and **Round 2**.
+
+The live simulator mirrors the selected watch variant:
+
+- selected preset/platform
+- row count and round/rect slot hiding
+- row types and per-row colors
+- example values for time, date, weekday, weather, BG, delta, steps, heart rate, BG timestamp, and rain
+- ghost dot density
+- main vs shake preview
 
 ---
 
@@ -107,7 +120,13 @@ Development tips:
 - Phone code: `src/js/pebble-js-app.js`
 - Watch code: `src/main.c`
 - Web config: `web/config/`
-- AppMessage keys: `appinfo.json` → `appKeys`
+- AppMessage keys: `package.json` → `pebble.appKeys` (source of truth for generated message keys)
+
+Recent implementation notes:
+- Ghost text layers are hidden; the ghost is rendered by a dotted hatch layer in `src/main.c`.
+- Ghost density is configurable and sent as `GHOST_DENSITY`.
+- The config simulator uses a DSEG webfont for near-watch-like rendering and falls back gracefully if the font is unavailable.
+- The simulator includes a main/shake toggle, so you can preview the secondary row mapping before saving.
 
 ---
 
