@@ -130,6 +130,7 @@
       "SHAKE_ROW4_TYPE",
       "SHAKE_ROW5_TYPE",
       "SHOW_GHOST_GRID",
+      "GHOST_DENSITY",
       "BG_DELTA",
       "WEATHER_RAIN3H"
     ],

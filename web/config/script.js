@@ -38,6 +38,13 @@
       colorHighLabel: 'Color High',
       ghostColorLabel: 'Ghost Color',
       showGhostGridLabel: 'Show ghost background grid',
+      ghostDensityLabel: 'Ghost dot density',
+      ghostDensityPreviewLabel: 'Preview',
+      ghostDensityNames: ['very light', 'light', 'medium', 'dense', 'very dense'],
+      previewMainLabel: 'Main rows',
+      previewShakeLabel: 'Shake rows',
+      previewToggleToShake: 'Show shake preview',
+      previewToggleToMain: 'Show main preview',
       shakeTitle: 'Shake to Reveal',
       shakeIntro: 'Shake or tap the watch to temporarily replace selected rows for 5 seconds using the same 5-digit look.',
       alertsTitle: 'Alerts and Behaviour',
@@ -113,6 +120,13 @@
       colorHighLabel: 'Farbe Hoch',
       ghostColorLabel: 'Ghost-Farbe',
       showGhostGridLabel: 'Ghost-Hintergrundraster anzeigen',
+      ghostDensityLabel: 'Ghost-Punktdichte',
+      ghostDensityPreviewLabel: 'Vorschau',
+      ghostDensityNames: ['sehr duenn', 'duenn', 'mittel', 'dicht', 'sehr dicht'],
+      previewMainLabel: 'Hauptzeilen',
+      previewShakeLabel: 'Shake-Zeilen',
+      previewToggleToShake: 'Shake-Vorschau zeigen',
+      previewToggleToMain: 'Hauptvorschau zeigen',
       shakeTitle: 'Shake zum Anzeigen',
       shakeIntro: 'Schuetteln oder Tippen ersetzt ausgewaehlte Zeilen fuer 5 Sekunden im gleichen 5-Digit-Look.',
       alertsTitle: 'Alarme und Verhalten',
@@ -235,7 +249,7 @@
           { type: 3, color: '#FFFFFF' },
           { type: 5, color: '#FFFFFF' }
         ],
-        colors: { low: '#FFFFFF', in: '#FFFFFF', high: '#FFFFFF', ghost: '#777777' }
+        colors: { low: '#FFFFFF', in: '#FFFFFF', high: '#FFFFFF', ghost: '#AAAAAA' }
       }
     },
     {
@@ -253,7 +267,7 @@
           { type: 3, color: '#AAAAAA' },
           { type: 5, color: '#FFFFFF' }
         ],
-        colors: { low: '#FFFFFF', in: '#AAAAAA', high: '#555555', ghost: '#AAAAAA' }
+        colors: { low: '#FFFFFF', in: '#AAAAAA', high: '#555555', ghost: '#555555' }
       }
     },
     {
@@ -332,9 +346,11 @@
 
   var state = {
     presetId: null,
+    activePlatform: '',
     defaultRows: [],
     defaultBgColors: {},
-    lang: 'en'
+    lang: 'en',
+    previewMode: 'main'
   };
 
   function getLang() {
@@ -418,6 +434,10 @@
     setText('colorHighLabel', txt('colorHighLabel'));
     setText('ghostColorLabel', txt('ghostColorLabel'));
     setText('showGhostGridLabel', txt('showGhostGridLabel'));
+    setText('ghostDensityLabel', txt('ghostDensityLabel'));
+    setText('ghostPreviewTitle', txt('ghostDensityPreviewLabel'));
+    updatePreviewModeUI();
+    updateGhostDensityLabel();
     setText('shakeTitle', txt('shakeTitle'));
     setText('shakeIntro', txt('shakeIntro'));
     setText('alertsTitle', txt('alertsTitle'));
@@ -453,7 +473,8 @@
   }
 
   function getBWLevels() {
-    if (params.platform === 'aplite') {
+    var platform = state.activePlatform || params.platform || '';
+    if (platform === 'aplite') {
       return [0, 255];
     }
     return [0, 85, 170, 255];
@@ -477,6 +498,16 @@
       }
     }
     return out;
+  }
+
+  function getGhostColorOptions() {
+    if (params.bw && (state.activePlatform || params.platform) === 'aplite') {
+      return [
+        { hex: '#555555', name: '#555555' },
+        { hex: '#FFFFFF', name: '#FFFFFF' }
+      ];
+    }
+    return getColorOptions();
   }
 
   function quantizeToPebble(hex) {
@@ -507,6 +538,342 @@
     return '#' + colorHex(r) + colorHex(g) + colorHex(b);
   }
 
+  function quantizeGhostToPebble(hex) {
+    var q = quantizeToPebble(hex);
+    if (params.bw && (state.activePlatform || params.platform) === 'aplite' && q === '#000000') {
+      // Aplite ghost should stay at darkest non-black shade.
+      return '#555555';
+    }
+    return q;
+  }
+
+  function updateGhostDensityLabel() {
+    var el = byId('ghostDensity');
+    var lbl = byId('ghostDensityValue');
+    if (!el || !lbl) return;
+    var d = parseInt(el.value, 10) || 3;
+    var names = (I18N[state.lang] && I18N[state.lang].ghostDensityNames) || I18N.en.ghostDensityNames;
+    lbl.textContent = names[(d - 1)] || d;
+  }
+
+  function updatePreviewModeUI() {
+    var stateEl = byId('previewModeState');
+    var btn = byId('previewModeToggle');
+    var isShake = state.previewMode === 'shake';
+    if (stateEl) stateEl.textContent = isShake ? txt('previewShakeLabel') : txt('previewMainLabel');
+    if (btn) btn.textContent = isShake ? txt('previewToggleToMain') : txt('previewToggleToShake');
+  }
+
+  function slotHiddenOnRound(row, col, rowsCount, isRound) {
+    return !!(isRound && (row === 0 || row === (rowsCount - 1)) && (col === 0 || col === 4));
+  }
+
+  function toSlots5(text) {
+    var out = [' ', ' ', ' ', ' ', ' '];
+    var s = String(text || '');
+    for (var i = 0; i < 5 && i < s.length; i++) out[i] = s.charAt(i);
+    return out;
+  }
+
+  function sampleSlotsForType(type) {
+    var isDe = state.lang === 'de';
+    switch (type) {
+      case 0: return toSlots5(' 21 C');
+      case 1: return toSlots5('14:37');
+      case 2: {
+        var fmt = parseInt((document.querySelector('input[name="datefmt"]:checked') || { value: '0' }).value, 10) || 0;
+        return toSlots5(fmt === 0 ? '15/05' : '05/15');
+      }
+      case 3: return toSlots5(isDe ? '  MIT' : '  WED');
+      case 4: return toSlots5(' 84% ');
+      case 5: return toSlots5(' 118 ');
+      case 6: return toSlots5(' 7420');
+      case 7: return toSlots5('HR072');
+      case 8: return toSlots5(' 1328');
+      case 9: return toSlots5(' +12 ');
+      case 10: return toSlots5('R 40 ');
+      default: return toSlots5('     ');
+    }
+  }
+
+  function getPreviewRowsData(rowsCount) {
+    var rows = normalizedRows(collectRows());
+    var shakeRows = collectShakeRows();
+    var active = [];
+    for (var i = 0; i < rowsCount; i++) {
+      var base = rows[i] || { type: 0, color: '#FFFFFF' };
+      var t = base.type;
+      if (state.previewMode === 'shake' && shakeRows[i] !== undefined && shakeRows[i] >= 0) t = shakeRows[i];
+      active.push({ type: t, color: quantizeToPebble(base.color), slots: sampleSlotsForType(t) });
+    }
+    return active;
+  }
+
+  function drawSegment(ctx, x, y, w, h, seg, color) {
+    var t = Math.max(1, Math.floor(Math.min(w, h) / 8));
+    var inset = Math.max(1, Math.floor(t / 2));
+    var x0 = x + inset;
+    var x1 = x + w - inset;
+    var y0 = y + inset;
+    var y1 = y + h - inset;
+    var xm = Math.floor((x0 + x1) / 2);
+    var ym = Math.floor((y0 + y1) / 2);
+    ctx.fillStyle = color;
+    switch (seg) {
+      case 'A': ctx.fillRect(x0 + t, y0, Math.max(1, x1 - x0 - 2 * t), t); break;
+      case 'B': ctx.fillRect(x1 - t, y0 + t, t, Math.max(1, ym - y0 - t)); break;
+      case 'C': ctx.fillRect(x1 - t, ym + t, t, Math.max(1, y1 - ym - 2 * t)); break;
+      case 'D': ctx.fillRect(x0 + t, y1 - t, Math.max(1, x1 - x0 - 2 * t), t); break;
+      case 'E': ctx.fillRect(x0, ym + t, t, Math.max(1, y1 - ym - 2 * t)); break;
+      case 'F': ctx.fillRect(x0, y0 + t, t, Math.max(1, ym - y0 - t)); break;
+      case 'G': ctx.fillRect(x0 + t, ym - Math.floor(t / 2), Math.max(1, x1 - x0 - 2 * t), t); break;
+      case 'DP': ctx.fillRect(x1 - t, y1 - t, t, t); break;
+    }
+  }
+
+  function drawSegmentGlyph(ctx, ch, x, y, w, h, color) {
+    var c = String(ch || ' ').toUpperCase();
+    if (c === '+') {
+      ctx.fillStyle = color;
+      var barH = Math.max(1, Math.floor(h * 0.12));
+      var barW = Math.max(1, Math.floor(w * 0.56));
+      var barX = x + Math.floor((w - barW) / 2);
+      var barY = y + Math.floor((h - barH) / 2);
+      ctx.fillRect(barX, barY, barW, barH);
+      var vW = Math.max(1, Math.floor(w * 0.12));
+      var vH = Math.max(1, Math.floor(h * 0.56));
+      var vX = x + Math.floor((w - vW) / 2);
+      var vY = y + Math.floor((h - vH) / 2);
+      ctx.fillRect(vX, vY, vW, vH);
+      return;
+    }
+    if (c === '-') {
+      ctx.fillStyle = color;
+      var dashH = Math.max(1, Math.floor(h * 0.12));
+      var dashW = Math.max(1, Math.floor(w * 0.56));
+      var dashX = x + Math.floor((w - dashW) / 2);
+      var dashY = y + Math.floor((h - dashH) / 2);
+      ctx.fillRect(dashX, dashY, dashW, dashH);
+      return;
+    }
+    var map = {
+      '0': ['A','B','C','D','E','F'],
+      '1': ['B','C'],
+      '2': ['A','B','G','E','D'],
+      '3': ['A','B','G','C','D'],
+      '4': ['F','G','B','C'],
+      '5': ['A','F','G','C','D'],
+      '6': ['A','F','E','D','C','G'],
+      '7': ['A','B','C'],
+      '8': ['A','B','C','D','E','F','G'],
+      '9': ['A','B','C','D','F','G'],
+      '0': ['A','B','C','D','E','F'],
+      '=': ['G','D'],
+      '_': ['D'],
+      'C': ['A','F','E','D'],
+      'F': ['A','F','E','G'],
+      'H': ['F','E','G','B','C'],
+      'R': ['A','F','E','G','B','C'],
+      'P': ['A','B','F','E','G'],
+      'M': ['F','B','E','C'],
+      'U': ['F','E','D','B','C'],
+      'N': ['F','E','B','C'],
+      'O': ['A','B','C','D','E','F'],
+      'D': ['B','C','D','E','G'],
+      'E': ['A','F','E','D','G'],
+      'W': null,
+      'T': ['A','G'],
+      'S': ['A','F','G','C','D'],
+      'G': ['A','F','E','D','C'],
+      '/': ['B','E'],
+      '%': null,
+      ':': null,
+      ' ': []
+    };
+    if (c === ':') {
+      var dot = Math.max(1, Math.floor(Math.min(w, h) / 8));
+      ctx.fillStyle = color;
+      ctx.fillRect(x + Math.floor(w / 2) - Math.floor(dot / 2), y + Math.floor(h / 3), dot, dot);
+      ctx.fillRect(x + Math.floor(w / 2) - Math.floor(dot / 2), y + Math.floor(h * 2 / 3), dot, dot);
+      return;
+    }
+    if (c === '%') {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x + Math.floor(w * 0.28), y + Math.floor(h * 0.32), Math.max(1, Math.floor(Math.min(w, h) * 0.08)), 0, Math.PI * 2);
+      ctx.arc(x + Math.floor(w * 0.72), y + Math.floor(h * 0.68), Math.max(1, Math.floor(Math.min(w, h) * 0.08)), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(x + Math.floor(w * 0.25), y + Math.floor(h * 0.18), Math.max(1, Math.floor(w * 0.06)), Math.floor(h * 0.70));
+      return;
+    }
+    var segs = map[c];
+    if (segs) {
+      segs.forEach(function(seg) { drawSegment(ctx, x, y, w, h, seg, color); });
+      return;
+    }
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = 'bold ' + Math.max(8, Math.floor(h * 0.42)) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(c, x + Math.floor(w / 2), y + Math.floor(h / 2) + 1);
+    ctx.restore();
+  }
+
+  function drawFontGlyph(ctx, ch, x, y, w, h, color, weight) {
+    var c = String(ch || ' ');
+    if (c === ' ') return;
+    if (c === '+') {
+      ctx.save();
+      ctx.fillStyle = color;
+      var plusH = Math.max(1, Math.floor(h * 0.08));
+      var plusW = Math.max(1, Math.floor(w * 0.42));
+      var plusX = x + Math.floor((w - plusW) / 2);
+      var plusY = y + Math.floor((h - plusH) / 2);
+      ctx.fillRect(plusX, plusY, plusW, plusH);
+
+      var stemW = Math.max(1, Math.floor(w * 0.08));
+      var stemH = Math.max(1, Math.floor(h * 0.48));
+      var stemX = x + Math.floor((w - stemW) / 2);
+      var stemY = y + Math.floor((h - stemH) / 2);
+      ctx.fillRect(stemX, stemY, stemW, stemH);
+      ctx.restore();
+      return;
+    }
+    if (c === 'W') {
+      ctx.save();
+      ctx.fillStyle = color;
+      var wSize = Math.max(8, Math.floor(h * 0.74));
+      ctx.translate(x + Math.floor(w / 2), y + Math.floor(h / 2) + 1);
+      ctx.scale(1.22, 1);
+      ctx.font = (weight || 700) + ' ' + wSize + 'px DSEG14Web, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('W', 0, 0);
+      ctx.restore();
+      return;
+    }
+    var size = Math.max(8, Math.floor(h * 0.74));
+    var family = 'DSEG14Web, sans-serif';
+    var canUseDseg = true;
+    try {
+      if (document.fonts && document.fonts.check) {
+        canUseDseg = document.fonts.check((weight || 700) + ' ' + size + 'px DSEG14Web');
+      }
+    } catch (_e) {}
+    if (!canUseDseg) {
+      drawSegmentGlyph(ctx, c, x, y, w, h, color);
+      return;
+    }
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.font = (weight || 700) + ' ' + size + 'px ' + family;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(c, x + Math.floor(w / 2), y + Math.floor(h / 2) + 1);
+    ctx.restore();
+  }
+
+  function drawGhostPreview() {
+    var canvas = byId('ghostPreviewCanvas');
+    if (!canvas || !canvas.getContext) return;
+    var platform = (state.activePlatform || params.platform || '').toLowerCase();
+    var isRound = (platform === 'chalk' || platform === 'gabbro' || platform === 'round2');
+    var simW = params.sw || (isRound ? 180 : 144);
+    var simH = params.sh || (isRound ? 180 : 168);
+    if (canvas.width !== simW) canvas.width = simW;
+    if (canvas.height !== simH) canvas.height = simH;
+    canvas.style.width = Math.round(simW * 1.1) + 'px';
+    canvas.style.height = Math.round(simH * 1.1) + 'px';
+    var ctx = canvas.getContext('2d');
+    var ROWS_COUNT = params.rows || 5;
+    var COLS = 5;
+    var W = canvas.width;
+    var H = canvas.height;
+    var density = parseInt((byId('ghostDensity') || {}).value || '3', 10);
+    if (density < 1) density = 1;
+    if (density > 5) density = 5;
+    var steps = [8, 6, 4, 3, 2];
+    var step = steps[density - 1];
+    var useFallback = params.bw || !supportsColorInput();
+    var ghostEl = byId('ghost');
+    var ghostFallEl = byId('ghostFallback');
+    var ghostHex = useFallback
+      ? ((ghostFallEl && ghostFallEl.value) || '#555555')
+      : ((ghostEl && ghostEl.value) || '#555555');
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, W, H);
+    if (isRound) {
+      ctx.save();
+      ctx.beginPath();
+      var r = Math.min(W, H) / 2 - 2;
+      ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath();
+      var r2 = Math.min(W, H) / 2 - 2;
+      ctx.arc(W / 2, H / 2, r2, 0, Math.PI * 2);
+      ctx.clip();
+    }
+    var slotW = Math.floor(W / COLS);
+    var rowH = Math.floor(H / ROWS_COUNT);
+    var leftPad = Math.floor((W - slotW * COLS) / 2);
+    var rowsData = getPreviewRowsData(ROWS_COUNT);
+    ctx.fillStyle = ghostHex;
+    for (var row = 0; row < ROWS_COUNT; row++) {
+      for (var col = 0; col < COLS; col++) {
+        if (slotHiddenOnRound(row, col, ROWS_COUNT, isRound)) continue;
+        var sx = leftPad + col * slotW;
+        var sy = row * rowH;
+        var mx = Math.max(1, Math.floor(slotW / 5));
+        var my = Math.max(1, Math.floor(rowH / 7));
+        var x0 = sx + mx;
+        var x1 = sx + slotW - mx - 1;
+        var y0 = sy + my;
+        var y1 = sy + rowH - my - 1;
+        var ym = Math.floor((y0 + y1) / 2);
+        for (var x = x0; x <= x1; x += step) {
+          ctx.fillRect(x, y0, 1, 1);
+          ctx.fillRect(x, ym, 1, 1);
+          ctx.fillRect(x, y1, 1, 1);
+        }
+        for (var y = y0 + step; y <= ym - step; y += step) {
+          ctx.fillRect(x0, y, 1, 1);
+          ctx.fillRect(x1, y, 1, 1);
+        }
+        for (var y2 = ym + step; y2 <= y1 - step; y2 += step) {
+          ctx.fillRect(x0, y2, 1, 1);
+          ctx.fillRect(x1, y2, 1, 1);
+        }
+      }
+    }
+
+    // Foreground sample digits in configured row color.
+    for (var r3 = 0; r3 < ROWS_COUNT; r3++) {
+      var rd = rowsData[r3] || { color: '#FFFFFF', slots: [' ',' ',' ',' ',' '] };
+      for (var c3 = 0; c3 < COLS; c3++) {
+        if (slotHiddenOnRound(r3, c3, ROWS_COUNT, isRound)) continue;
+        var ch = rd.slots[c3] || ' ';
+        if (ch === ' ') continue;
+        var sx2 = leftPad + c3 * slotW;
+        var sy2 = r3 * rowH;
+        drawFontGlyph(ctx, ch, sx2 + 1, sy2 + 1, slotW - 2, rowH - 2, rd.color || '#FFFFFF', 700);
+      }
+    }
+
+    if (isRound) {
+      ctx.restore();
+      ctx.strokeStyle = '#2a3240';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, Math.min(W, H) / 2 - 1, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
   function colorFriendlyName(hex) {
     var h = (hex || '').toUpperCase();
     var names = {
@@ -525,7 +892,7 @@
     if (!meta) return;
     var sw = meta.querySelector('.swatch-preview');
     var name = meta.querySelector('.color-name');
-    var q = quantizeToPebble(inp.value || '#FFFFFF');
+    var q = (inp.id === 'ghost') ? quantizeGhostToPebble(inp.value || '#FFFFFF') : quantizeToPebble(inp.value || '#FFFFFF');
     if (sw) sw.style.background = q;
     if (name) name.textContent = colorFriendlyName(q) + ' (' + q + ')';
   }
@@ -537,6 +904,9 @@
     payload.colors.in = '#FFFFFF';
     payload.colors.high = '#FFFFFF';
     payload.colors.ghost = quantizeToPebble(payload.colors.ghost || '#555555');
+    if (payload.colors.ghost === '#000000' || payload.colors.ghost === '#555555') {
+      payload.colors.ghost = '#AAAAAA';
+    }
     if (Array.isArray(payload.rows)) {
       payload.rows = payload.rows.map(function(row){
         if (!row || typeof row !== 'object') return { type: 0, color: '#FFFFFF' };
@@ -564,7 +934,7 @@
       low: '#FFFFFF',
       in: '#FFFFFF',
       high: '#FFFFFF',
-      ghost: '#777777'
+      ghost: '#AAAAAA'
     } : {
       low: '#FFFFFF',
       in: '#AAAAAA',
@@ -610,6 +980,7 @@
       else preset = Presets[1];
     }
     state.presetId = preset.id;
+    state.activePlatform = preset.id;
     if (profile === 'round2') params.rows = 5; // one more row than legacy round
     else if (profile === 'time2') params.rows = 5;
     else params.rows = preset.rows;
@@ -651,6 +1022,9 @@
         renderPresetGrid();
         rebuildColorPickers();
         updateBGSectionVisibility();
+        updateGhostDensityLabel();
+        updatePreviewModeUI();
+        drawGhostPreview();
       };
       grid.appendChild(btn);
     });
@@ -688,7 +1062,7 @@
     });
     var colorInputs = form.querySelectorAll('input.row-color');
     var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
-    var useFallback = !supportsColorInput();
+    var useFallback = params.bw || !supportsColorInput();
     forEachNode(colorFallbacks, function(sel, idx){
       sel.innerHTML = '';
       getColorOptions().forEach(function(opt){
@@ -697,17 +1071,22 @@
         o.textContent = opt.name + ' (' + opt.hex + ')';
         sel.appendChild(o);
       });
-      if (resetValues && idx < params.rows) sel.value = state.defaultRows[idx].color;
+      if (resetValues && idx < params.rows) sel.value = quantizeToPebble(state.defaultRows[idx].color);
     });
     forEachNode(colorInputs, function(inp, idx){
-      if (resetValues && idx < params.rows) inp.value = state.defaultRows[idx].color;
+      if (resetValues && idx < params.rows) inp.value = quantizeToPebble(state.defaultRows[idx].color);
       inp.setAttribute('list','palette-list');
       inp.addEventListener('change', function(){ inp.value = quantizeToPebble(inp.value); updateColorMetaForInput(inp); });
       inp.addEventListener('input', function(){ updateColorMetaForInput(inp); });
       if (useFallback) {
         inp.hidden = true;
         colorFallbacks[idx].hidden = false;
-        if (resetValues && idx < params.rows) colorFallbacks[idx].value = state.defaultRows[idx].color;
+        colorFallbacks[idx].onchange = function() {
+          inp.value = quantizeToPebble(colorFallbacks[idx].value || '#FFFFFF');
+          updateColorMetaForInput(inp);
+        };
+        if (resetValues && idx < params.rows) colorFallbacks[idx].value = quantizeToPebble(state.defaultRows[idx].color);
+        inp.value = quantizeToPebble(colorFallbacks[idx].value || inp.value);
       } else {
         inp.hidden = false;
         if (colorFallbacks[idx]) colorFallbacks[idx].hidden = true;
@@ -743,7 +1122,7 @@
     var typeSelects = form.querySelectorAll('select.row-type');
     var colorInputs = form.querySelectorAll('input.row-color');
     var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
-    var useFallback = !supportsColorInput();
+    var useFallback = params.bw || !supportsColorInput();
     var rows = [];
     for (var i=0;i<params.rows;i++) {
       var type = parseInt(typeSelects[i].value,10);
@@ -800,12 +1179,12 @@
   }
 
   function rebuildColorPickers() {
-    var useFallback = !supportsColorInput();
+    var useFallback = params.bw || !supportsColorInput();
     ['colLowFallback','colInFallback','colHighFallback','ghostFallback'].forEach(function(id){
       var sel = byId(id);
       if (!sel) return;
       sel.innerHTML = '';
-      var opts = getColorOptions();
+      var opts = (id === 'ghostFallback') ? getGhostColorOptions() : getColorOptions();
       opts.forEach(function(opt){
         var o = document.createElement('option');
         o.value = opt.hex; o.textContent = opt.name + ' (' + opt.hex + ')'; sel.appendChild(o);
@@ -817,7 +1196,7 @@
       var input = byId(id);
       var sel = byId(id+'Fallback');
       var key = bgKeyById[id];
-      var defaultValue = quantizeToPebble(state.defaultBgColors[key]);
+      var defaultValue = (id === 'ghost') ? quantizeGhostToPebble(state.defaultBgColors[key]) : quantizeToPebble(state.defaultBgColors[key]);
       if (input) {
         input.value = defaultValue;
         input.setAttribute('list','palette-list');
@@ -830,6 +1209,13 @@
       if (sel) {
         sel.value = defaultValue;
         sel.hidden = !useFallback;
+        sel.onchange = function() {
+          if (input) {
+            input.value = (id === 'ghost') ? quantizeGhostToPebble(sel.value || '#FFFFFF') : quantizeToPebble(sel.value || '#FFFFFF');
+          }
+          updateColorMetaForInput(input);
+          if (id === 'ghost') drawGhostPreview();
+        };
       }
     });
     try {
@@ -849,15 +1235,16 @@
         o.value = opt.hex; o.label = opt.name; dl.appendChild(o);
       });
     } catch(e) {}
+    drawGhostPreview();
   }
 
   function save() {
     var rows = normalizedRows(collectRows());
-    var useFallback = !supportsColorInput();
+    var useFallback = params.bw || !supportsColorInput();
     var colLow = quantizeToPebble(useFallback ? byId('colLowFallback').value : byId('colLow').value);
     var colIn  = quantizeToPebble(useFallback ? byId('colInFallback').value  : byId('colIn').value);
     var colHigh= quantizeToPebble(useFallback ? byId('colHighFallback').value: byId('colHigh').value);
-    var ghost  = quantizeToPebble(useFallback ? byId('ghostFallback').value  : byId('ghost').value);
+    var ghost  = quantizeGhostToPebble(useFallback ? byId('ghostFallback').value  : byId('ghost').value);
     if (params.pebble2) {
       colLow = '#FFFFFF';
       colIn = '#FFFFFF';
@@ -884,6 +1271,8 @@
         ghost: ghost
       },
       showGhostGrid: byId('showGhostGrid').checked,
+      ghostDensity: parseInt((byId('ghostDensity') || {value: '3'}).value || '3', 10),
+      previewMode: state.previewMode,
       rows: rows,
       shakeRows: collectShakeRows(),
       preset: state.presetId,
@@ -938,7 +1327,7 @@
       var applyColorValue = function(id, value) {
         var input = byId(id);
         var sel = byId(id + 'Fallback');
-        var quant = quantizeToPebble(value);
+        var quant = (id === 'ghost') ? quantizeGhostToPebble(value) : quantizeToPebble(value);
         if (input) input.value = quant;
         if (sel) sel.value = quant;
         updateColorMetaForInput(input);
@@ -948,6 +1337,10 @@
       applyColorValue('colHigh', (cfg.colors && cfg.colors.high) || state.defaultBgColors.high);
       applyColorValue('ghost', (cfg.colors && cfg.colors.ghost) || state.defaultBgColors.ghost);
       if (byId('showGhostGrid')) byId('showGhostGrid').checked = cfg.showGhostGrid !== false;
+      var densityEl = byId('ghostDensity');
+      if (densityEl && cfg.ghostDensity) { densityEl.value = cfg.ghostDensity; updateGhostDensityLabel(); }
+      if (cfg.previewMode === 'shake') state.previewMode = 'shake'; else state.previewMode = 'main';
+      updatePreviewModeUI();
       var shakeRows = normalizedShakeRows(cfg.shakeRows || []);
       var shakeForm = byId('shake-rows-form');
       if (shakeForm) {
@@ -988,9 +1381,49 @@
     restoreSaved();
     byId('rows-form').addEventListener('change', function(e){
       if (e.target && (e.target.classList.contains('row-type'))) updateBGSectionVisibility();
+      drawGhostPreview();
     });
+    byId('rows-form').addEventListener('input', function(e){
+      if (e.target && e.target.classList.contains('row-color')) drawGhostPreview();
+    });
+    var shakeForm = byId('shake-rows-form');
+    if (shakeForm) shakeForm.addEventListener('change', drawGhostPreview);
     updateBGSectionVisibility();
     updateBGFetchModeUI();
+    // Ghost density slider + live preview
+    var ghostDensityEl = byId('ghostDensity');
+    if (ghostDensityEl) {
+      ghostDensityEl.addEventListener('input', function() {
+        updateGhostDensityLabel();
+        drawGhostPreview();
+      });
+    }
+    // Ghost color changes → update preview (works for both color input and fallback select)
+    var bgSection = byId('bg-section');
+    if (bgSection) {
+      bgSection.addEventListener('change', function(e) {
+        if (e.target && (e.target.id === 'ghost' || e.target.id === 'ghostFallback')) drawGhostPreview();
+      });
+      bgSection.addEventListener('input', function(e) {
+        if (e.target && e.target.id === 'ghost') drawGhostPreview();
+      });
+    }
+    var previewModeToggle = byId('previewModeToggle');
+    if (previewModeToggle) {
+      previewModeToggle.onclick = function() {
+        state.previewMode = (state.previewMode === 'shake') ? 'main' : 'shake';
+        updatePreviewModeUI();
+        drawGhostPreview();
+      };
+    }
+    drawGhostPreview();
+    try {
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function() {
+          drawGhostPreview();
+        });
+      }
+    } catch (_e) {}
     byId('save').onclick=save;
     byId('cancel').onclick=cancel;
     if (byId('syncBgWithInterval')) {
@@ -1010,6 +1443,8 @@
         buildRowsForm(false);
         buildShakeRowsForm(false);
         renderPresetGrid();
+        updatePreviewModeUI();
+        drawGhostPreview();
       };
     }
   }

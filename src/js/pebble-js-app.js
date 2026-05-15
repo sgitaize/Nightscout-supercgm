@@ -32,6 +32,7 @@ var keys = require('message_keys');
     dateFormat: 0,
     weekdayLang: 1,  // 0=German, 1=English (matches C init_defaults)
     showGhostGrid: true,
+    ghostDensity: 3,
     shakeRows: [-1, -1, -1, -1, -1],
     vibeOnLow: false,
     vibeOnHigh: false,
@@ -143,6 +144,9 @@ var keys = require('message_keys');
       config.colors.in = '#FFFFFF';
       config.colors.high = '#FFFFFF';
       config.colors.ghost = quantize(config.colors.ghost || '#555555');
+      if (config.colors.ghost === '#000000' || config.colors.ghost === '#555555') {
+        config.colors.ghost = '#AAAAAA';
+      }
     } else {
       config.colors.low = quantize(config.colors.low || '#FFFFFF');
       config.colors.in = quantize(config.colors.in || '#AAAAAA');
@@ -182,6 +186,7 @@ var keys = require('message_keys');
       'DATE_FORMAT': config.dateFormat,
       'WEEKDAY_LANG': config.weekdayLang,
       'SHOW_GHOST_GRID': config.showGhostGrid === false ? 0 : 1,
+      'GHOST_DENSITY': Math.max(1, Math.min(5, parseInt(config.ghostDensity || 3, 10))),
       'TEMP_UNIT': config.tempUnit === 'F' ? 1 : 0,
       'WEATHER_INTERVAL_MIN': config.weatherIntervalMin,
       'BG_TIMEOUT_MIN': config.bgTimeoutMin,
@@ -501,6 +506,7 @@ var keys = require('message_keys');
         if (cfg) {
           cfg.shakeRows = normalizeShakeRows(cfg.shakeRows);
           if (cfg.showGhostGrid === undefined) cfg.showGhostGrid = true;
+          if (!cfg.ghostDensity) cfg.ghostDensity = 3;
           if (cfg.syncBgWithInterval === undefined) cfg.syncBgWithInterval = true;
           if (!cfg.bgManualIntervalMin) cfg.bgManualIntervalMin = 5;
         }
@@ -592,6 +598,7 @@ var keys = require('message_keys');
       config.rows = normalizeRows(config.rows);
       config.shakeRows = normalizeShakeRows(config.shakeRows);
       if (config.showGhostGrid === undefined) config.showGhostGrid = true;
+      if (!config.ghostDensity) config.ghostDensity = 3;
       if (config.syncBgWithInterval === undefined) config.syncBgWithInterval = true;
       if (!config.bgManualIntervalMin) config.bgManualIntervalMin = 5;
       // Persist to pkjs storage so it survives app restarts
