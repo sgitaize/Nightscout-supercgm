@@ -51,13 +51,24 @@
     "VIBE_ON_LOW": 34,
     "VIBE_ON_HIGH": 35,
     "BACKLIGHT_ON_SHAKE": 36,
-    "BG_IOB": 37
+    "BG_IOB": 37,
+    "SHAKE_ROW1_TYPE": 38,
+    "SHAKE_ROW2_TYPE": 39,
+    "SHAKE_ROW3_TYPE": 40,
+    "SHAKE_ROW4_TYPE": 41,
+    "SHAKE_ROW5_TYPE": 42,
+    "SHOW_GHOST_GRID": 43,
+    "BG_DELTA": 44,
+    "WEATHER_RAIN3H": 45
   },
   "targetPlatforms": [
     "aplite",
     "basalt",
     "chalk",
-    "diorite"
+    "diorite",
+    "emery",
+    "flint",
+    "gabbro"
   ],
   "resources": {
     "media": [
@@ -69,6 +80,16 @@
       {
         "type": "font",
         "name": "FONT_DSEG_30_REG",
+        "file": "fonts/DSEG14Classic-Regular.ttf"
+      },
+      {
+        "type": "font",
+        "name": "FONT_DSEG_34_BOLD",
+        "file": "fonts/DSEG14Classic-Bold.ttf"
+      },
+      {
+        "type": "font",
+        "name": "FONT_DSEG_34_REG",
         "file": "fonts/DSEG14Classic-Regular.ttf"
       },
       {

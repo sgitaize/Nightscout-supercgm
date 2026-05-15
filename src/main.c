@@ -1,6 +1,8 @@
 #include <pebble.h>
 
-#if defined(PBL_ROUND)
+#if defined(PBL_PLATFORM_GABBRO)
+#define ROWS 5
+#elif defined(PBL_ROUND)
 #define ROWS 4
 #else
 #define ROWS 5
@@ -16,7 +18,8 @@ typedef enum {
   ROW_TYPE_STEPS = 6,
   ROW_TYPE_HEART_RATE = 7,
   ROW_TYPE_BG_TIMESTAMP = 8,  /* time of last BG reading */
-  ROW_TYPE_IOB = 9            /* insulin on board from Nightscout */
+  ROW_TYPE_BG_DELTA = 9,      /* BG delta from Nightscout (can be +/-) */
+  ROW_TYPE_WEATHER_RAIN3H = 10 /* rain probability for next 3h */
 } RowType;
 
 typedef enum {
@@ -34,11 +37,12 @@ static Layer *s_bg_trend_layer;
 static GColor s_bg_trend_color;
 static Layer *s_weather_deg_layer;
 static GColor s_weather_deg_color;
-static char s_weather_unit_char = 0; // 'C' or 'F'
 // Persistent 1-char + NUL buffers for each foreground slot
 static char s_slot_text[ROWS][5][2];
 static GFont s_font_dseg_30;
 static GFont s_font_dseg_30_reg;
+static GFont s_font_dseg_34;
+static GFont s_font_dseg_34_reg;
 #if defined(PBL_ROUND)
 static GFont s_font_dseg_25;
 static GFont s_font_dseg_25_reg;
@@ -46,12 +50,13 @@ static GFont s_font_dseg_29;
 static GFont s_font_dseg_29_reg;
 #endif
 /* Shake overlay layers */
-static TextLayer *s_shake_label_layer;
-static TextLayer *s_shake_value_layer;
 static AppTimer  *s_shake_timer = NULL;
+static bool s_shake_active = false;
 static GColor s_row_colors[ROWS];
 static GColor s_ghost_color;
 static RowType s_row_types[ROWS];
+static int8_t s_shake_row_types[ROWS];
+static bool s_show_ghost_grid = true;
 static bool s_show_leading_zero = true;
 static int s_date_format = 0; // 0: dd/mm, 1: mm/dd
 static int s_weekday_lang = 1; // 0: de, 1: en
@@ -61,16 +66,13 @@ static char s_bg_trend[8];
 static int s_bg_unit_mmol = 0; // 0 mg/dL, 1 mmol
 
 static int s_bg_sgv = -1;
+static int s_bg_delta = -9999;
 static BgStatus s_bg_status = BG_STATUS_NO_CONN;
 static time_t s_bg_timestamp = 0;
 static int s_bg_timeout_min = 20;
 static int s_bg_fetch_interval_min = 5;
 static int s_bg_low = 80;
 static int s_bg_high = 180;
-/* Shake row */
-static RowType  s_shake_row_type      = ROW_TYPE_STEPS;
-static uint32_t s_shake_row_color_hex = 0xFFFFFF;
-static GColor   s_shake_row_color;
 /* Alerts & behaviour */
 static bool s_vibe_on_low         = false;
 static bool s_vibe_on_high        = false;
@@ -82,7 +84,7 @@ static uint32_t s_row_color_hex[ROWS];
 static uint32_t s_col_low_hex, s_col_high_hex, s_col_in_hex, s_ghost_hex;
 static int s_hr_bpm = -1;
 static time_t s_hr_timestamp = 0;
-static int s_iob_x100 = -1; /* insulin on board × 100, -1 = unknown */
+static int s_weather_rain3h = -1;
 
 static GColor ColorFromHex(uint32_t hex) {
 #if defined(PBL_COLOR)
@@ -108,6 +110,23 @@ static GColor ColorFromHex(uint32_t hex) {
 #endif
 }
 
+static GColor GhostColorFromHex(uint32_t hex) {
+#if defined(PBL_PLATFORM_DIORITE)
+  uint8_t r = (hex >> 16) & 0xFF;
+  uint8_t g = (hex >> 8) & 0xFF;
+  uint8_t b = (hex) & 0xFF;
+  uint8_t lum = (uint8_t)((r * 3 + g * 6 + b) / 10);
+  uint8_t level = (uint8_t)((lum + 42) / 85);
+  if (level > 3) level = 3;
+  uint8_t grey = (uint8_t)(level * 85);
+  return GColorFromRGB(grey, grey, grey);
+#elif defined(PBL_PLATFORM_APLITE)
+  return GColorWhite;
+#else
+  return ColorFromHex(hex);
+#endif
+}
+
 static void update_time(void);
 static void request_weather(void);
 static void draw_all_rows(void);
@@ -119,7 +138,44 @@ static void main_window_appear(Window *window);
 static void app_focus_handler(bool in_focus);
 static void force_redraw_layers(void);
 
-#if PBL_API_EXISTS(unobstructed_area_service_subscribe)
+static bool is_large_display(void) {
+  GRect bounds = get_layout_bounds();
+  return (bounds.size.w >= 200 || bounds.size.h >= 220);
+}
+
+static GFont choose_digit_font_for_row(int row) {
+  bool large = is_large_display();
+#if defined(PBL_ROUND)
+  if (row == 0 || row == ROWS - 1) {
+    if (large && s_font_dseg_30) return s_font_dseg_30;
+    if (s_font_dseg_25) return s_font_dseg_25;
+    return s_font_dseg_30;
+  }
+#endif
+  if (large && s_font_dseg_34) return s_font_dseg_34;
+#if defined(PBL_ROUND)
+  if (s_font_dseg_29) return s_font_dseg_29;
+#endif
+  return s_font_dseg_30;
+}
+
+static GFont choose_ghost_font_for_row(int row) {
+  bool large = is_large_display();
+#if defined(PBL_ROUND)
+  if (row == 0 || row == ROWS - 1) {
+    if (large && s_font_dseg_30_reg) return s_font_dseg_30_reg;
+    if (s_font_dseg_25_reg) return s_font_dseg_25_reg;
+    return s_font_dseg_30_reg;
+  }
+#endif
+  if (large && s_font_dseg_34_reg) return s_font_dseg_34_reg;
+#if defined(PBL_ROUND)
+  if (s_font_dseg_29_reg) return s_font_dseg_29_reg;
+#endif
+  return s_font_dseg_30_reg;
+}
+
+#ifdef _PBL_API_EXISTS_unobstructed_area_service_subscribe
 static void unobstructed_change(AnimationProgress progress, void *context);
 static void unobstructed_did_change(void *context);
 #endif
@@ -149,14 +205,7 @@ static void update_heart_rate(void) {
 
 static GRect get_layout_bounds(void) {
   Layer *window_layer = window_get_root_layer(s_main_window);
-  GRect bounds = layer_get_bounds(window_layer);
-#if PBL_API_EXISTS(unobstructed_area_service_get_unobstructed_bounds)
-  GRect unobstructed = unobstructed_area_service_get_unobstructed_bounds();
-  if (unobstructed.size.w > 0 && unobstructed.size.h > 0) {
-    bounds = unobstructed;
-  }
-#endif
-  return bounds;
+  return layer_get_unobstructed_bounds(window_layer);
 }
 
 // Persisted configuration cache
@@ -177,8 +226,8 @@ typedef struct {
   uint32_t col_low_hex;
   uint32_t col_high_hex;
   uint32_t col_in_hex;
-  RowType  shake_row_type;
-  uint32_t shake_row_color_hex;
+  int8_t   shake_row_types[ROWS];
+  int      show_ghost_grid;
   int      vibe_on_low;
   int      vibe_on_high;
   int      backlight_on_shake;
@@ -204,106 +253,34 @@ static void hatch_update_proc(Layer *layer, GContext *ctx) {
 #endif
 }
 
-// Shake overlay helpers
-static void hide_shake_overlay(void *context) {
+// Shake mode helpers
+static void hide_shake_mode(void *context) {
   (void)context;
   s_shake_timer = NULL;
-  if (s_shake_label_layer) layer_set_hidden(text_layer_get_layer(s_shake_label_layer), true);
-  if (s_shake_value_layer) layer_set_hidden(text_layer_get_layer(s_shake_value_layer), true);
+  s_shake_active = false;
+  draw_all_rows();
 }
 
-static void update_shake_overlay_content(void) {
-  if (!s_shake_label_layer || !s_shake_value_layer) return;
-  time_t now = time(NULL);
-  // Must be static: text_layer_set_text() stores the pointer, does NOT copy
-  static char val[20];
-  static char lbl[10];
-  switch (s_shake_row_type) {
-    case ROW_TYPE_STEPS: {
-      HealthValue st = health_service_sum_today(HealthMetricStepCount);
-      snprintf(val, sizeof(val), "%ld", (long)st);
-      snprintf(lbl, sizeof(lbl), "STEPS");
-      break;
-    }
-    case ROW_TYPE_HEART_RATE: {
-      bool fresh = (s_hr_bpm > 0 && s_hr_timestamp && (now - s_hr_timestamp) <= 300);
-      if (fresh) snprintf(val, sizeof(val), "%d BPM", s_hr_bpm);
-      else       snprintf(val, sizeof(val), "-- BPM");
-      snprintf(lbl, sizeof(lbl), "HR");
-      break;
-    }
-    case ROW_TYPE_BATTERY: {
-      BatteryChargeState bs = battery_state_service_peek();
-      snprintf(val, sizeof(val), "%d%%", bs.charge_percent);
-      snprintf(lbl, sizeof(lbl), "BATT");
-      break;
-    }
-    case ROW_TYPE_BG_TIMESTAMP: {
-      if (s_bg_timestamp > 0) {
-        // Show as HH:MM of last reading
-        struct tm *lt = localtime(&s_bg_timestamp);
-        snprintf(val, sizeof(val), "%02d:%02d", lt->tm_hour, lt->tm_min);
-        // Also show age in minutes
-        int age_min = (int)((now - s_bg_timestamp) / 60);
-        if (age_min < 0) age_min = 0;
-        if (age_min > 999) age_min = 999;
-        snprintf(lbl, sizeof(lbl), "%dmin", age_min);
-      } else {
-        snprintf(val, sizeof(val), "--:--");
-        snprintf(lbl, sizeof(lbl), "CGM");
-      }
-      break;
-    }
-    case ROW_TYPE_IOB: {
-      if (s_iob_x100 >= 0) {
-        int whole = s_iob_x100 / 100;
-        int frac  = s_iob_x100 % 100;
-        snprintf(val, sizeof(val), "%d.%02d U", whole, frac);
-      } else {
-        snprintf(val, sizeof(val), "-- U");
-      }
-      snprintf(lbl, sizeof(lbl), "IOB");
-      break;
-    }
-    case ROW_TYPE_BG: {
-      /* Show current bg string */
-      int age = (int)(now - s_bg_timestamp);
-      int stale = s_bg_fetch_interval_min * 2 * 60;
-      if (stale < 300) stale = 300;
-      if (s_bg_status == BG_STATUS_NO_CONN) snprintf(val, sizeof(val), "NO-CON");
-      else if (s_bg_status == BG_STATUS_NO_DATA || s_bg_sgv < 0) snprintf(val, sizeof(val), "NO-BG");
-      else if (s_bg_status == BG_STATUS_OLD || age > stale) snprintf(val, sizeof(val), "OLD-BG");
-      else if (s_bg_unit_mmol) { int m = (s_bg_sgv*10)/18; snprintf(val, sizeof(val), "%d.%d mmol", m/10, m%10); }
-      else snprintf(val, sizeof(val), "%d mg/dL", s_bg_sgv);
-      snprintf(lbl, sizeof(lbl), "CGM");
-      break;
-    }
-    default: {
-      HealthValue st = health_service_sum_today(HealthMetricStepCount);
-      snprintf(val, sizeof(val), "%ld", (long)st);
-      snprintf(lbl, sizeof(lbl), "STEPS");
-      break;
+static bool has_shake_overrides(void) {
+  for (int i = 0; i < ROWS; i++) {
+    if (s_shake_row_types[i] >= 0) {
+      return true;
     }
   }
-  text_layer_set_text(s_shake_label_layer, lbl);
-  text_layer_set_text(s_shake_value_layer, val);
-  text_layer_set_text_color(s_shake_label_layer, s_shake_row_color);
-  text_layer_set_text_color(s_shake_value_layer, s_shake_row_color);
-}
-
-static void show_shake_overlay(void) {
-  if (!s_shake_label_layer || !s_shake_value_layer) return;
-  if (s_shake_timer) { app_timer_cancel(s_shake_timer); s_shake_timer = NULL; }
-  update_shake_overlay_content();
-  layer_set_hidden(text_layer_get_layer(s_shake_label_layer), false);
-  layer_set_hidden(text_layer_get_layer(s_shake_value_layer), false);
-  s_shake_timer = app_timer_register(5000, hide_shake_overlay, NULL);
+  return false;
 }
 
 static void tap_handler(AccelAxisType axis, int32_t direction) {
   (void)axis; (void)direction;
   if (s_backlight_on_shake) light_enable_interaction();
-  show_shake_overlay();
+  if (!has_shake_overrides()) return;
+  s_shake_active = true;
+  if (s_shake_timer) {
+    app_timer_cancel(s_shake_timer);
+    s_shake_timer = NULL;
+  }
+  draw_all_rows();
+  s_shake_timer = app_timer_register(5000, hide_shake_mode, NULL);
 }
 
 static void connection_handler(bool connected) {
@@ -347,10 +324,16 @@ static void layout_rows(void) {
   GRect bounds = get_layout_bounds();
   int16_t row_height = bounds.size.h / ROWS;
 #if defined(PBL_ROUND)
-  // Compress row height to ~66% to reduce perceived spacing; center the block
+  // Legacy round is denser; larger round displays should use more of the screen.
+#if defined(PBL_PLATFORM_GABBRO)
+  row_height = (int16_t)((bounds.size.h / ROWS) * 0.90f);
+  int16_t y_offset = (bounds.size.h - (row_height * ROWS)) / 2;
+  int16_t gap = 2;
+#else
   row_height = (int16_t)((bounds.size.h / ROWS) * 0.66f);
   int16_t y_offset = (bounds.size.h - (row_height * ROWS)) / 2;
   int16_t gap = 5; // extra spacing between rows on round
+#endif
 #else
   int16_t y_offset = 0;
   int16_t gap = 0;
@@ -371,7 +354,7 @@ static void layout_rows(void) {
   int16_t y = y_origin + y_offset + i * row_height + i * gap;
   GRect frame = GRect(x_origin + left_pad + c * slot_w, y, slot_w, row_height);
       if (s_ghost_layers[i][c]) {
-  layer_set_hidden(text_layer_get_layer(s_ghost_layers[i][c]), hide);
+  layer_set_hidden(text_layer_get_layer(s_ghost_layers[i][c]), hide || !s_show_ghost_grid);
 #if defined(PBL_ROUND)
   GRect f2 = GRect(frame.origin.x, frame.origin.y, frame.size.w, frame.size.h-1);
   layer_set_frame(text_layer_get_layer(s_ghost_layers[i][c]), f2);
@@ -380,7 +363,7 @@ static void layout_rows(void) {
 #endif
       }
       if (s_ghost_hatch_layers[i][c]) {
-        layer_set_hidden(s_ghost_hatch_layers[i][c], hide);
+        layer_set_hidden(s_ghost_hatch_layers[i][c], hide || !s_show_ghost_grid);
         layer_set_frame(s_ghost_hatch_layers[i][c], frame);
       }
       if (s_digit_layers[i][c]) {
@@ -437,7 +420,7 @@ static void health_handler(HealthEventType event, void *context) {
 #endif
 }
 
-#if PBL_API_EXISTS(unobstructed_area_service_subscribe)
+#ifdef _PBL_API_EXISTS_unobstructed_area_service_subscribe
 static void unobstructed_change(AnimationProgress progress, void *context) {
   layout_rows();
 }
@@ -538,7 +521,15 @@ static void draw_all_rows(void) {
   static char s_hr[6];
   bool hr_fresh = (s_hr_bpm > 0 && s_hr_timestamp != 0 && (now - s_hr_timestamp) <= 300);
   if (hr_fresh) {
-    snprintf(s_hr, sizeof(s_hr), "HR%3d", s_hr_bpm);
+    int hr_disp = s_hr_bpm;
+    if (hr_disp < 0) hr_disp = 0;
+    if (hr_disp > 999) hr_disp = 999;
+    s_hr[0] = 'H';
+    s_hr[1] = 'R';
+    s_hr[2] = (char)('0' + ((hr_disp / 100) % 10));
+    s_hr[3] = (char)('0' + ((hr_disp / 10) % 10));
+    s_hr[4] = (char)('0' + (hr_disp % 10));
+    s_hr[5] = '\0';
   } else {
     snprintf(s_hr, sizeof(s_hr), "HR --");
   }
@@ -553,7 +544,12 @@ static void draw_all_rows(void) {
     // Build a 5-char buffer for this row
     char slots[6] = {' ', ' ', ' ', ' ', ' ', 0};
 
-  switch (s_row_types[i]) {
+    RowType row_type = s_row_types[i];
+    if (s_shake_active && s_shake_row_types[i] >= 0) {
+      row_type = (RowType)s_shake_row_types[i];
+    }
+
+  switch (row_type) {
       case ROW_TYPE_TIME:
         // Expect s_time like HH:MM (5 chars)
     strncpy(slots, s_time, 5);
@@ -722,7 +718,6 @@ static void draw_all_rows(void) {
     int16_t y_base = bounds.origin.y + i * row_h;
     GRect frame = GRect(bounds.origin.x + left_pad + deg_slot * slot_w, y_base, slot_w, row_h);
     s_weather_deg_color = color;
-    s_weather_unit_char = 0; (void)s_weather_unit_char; // overlay draws only the dot
     layer_set_frame(s_weather_deg_layer, frame);
     layer_set_hidden(s_weather_deg_layer, false);
     layer_mark_dirty(s_weather_deg_layer);
@@ -736,10 +731,49 @@ static void draw_all_rows(void) {
       case ROW_TYPE_HEART_RATE:
         strncpy(slots, s_hr, 5);
         break;
-      case ROW_TYPE_BG_TIMESTAMP:
-      case ROW_TYPE_IOB:
-        /* shake-only types: not used as a permanent row; show blank */
+      case ROW_TYPE_BG_TIMESTAMP: {
+        if (s_bg_timestamp > 0) {
+          struct tm *lt = localtime(&s_bg_timestamp);
+          char ts[6];
+          snprintf(ts, sizeof(ts), "%02d%02d", lt->tm_hour, lt->tm_min);
+          slots[0] = ' ';
+          for (int k = 0; k < 4; k++) slots[k + 1] = ts[k];
+        } else {
+          slots[0] = ' ';
+          slots[1] = '-';
+          slots[2] = '-';
+          slots[3] = ' ';
+          slots[4] = ' ';
+        }
         break;
+      }
+      case ROW_TYPE_BG_DELTA: {
+        char d[8];
+        if (s_bg_status == BG_STATUS_OK && s_bg_delta != -9999) {
+          snprintf(d, sizeof(d), "%+d", s_bg_delta);
+        } else {
+          snprintf(d, sizeof(d), "--");
+        }
+        size_t dl = strlen(d);
+        if (dl > 5) dl = 5;
+        int dstart = (5 - (int)dl) / 2;
+        for (size_t k = 0; k < dl; k++) slots[dstart + (int)k] = d[k];
+        break;
+      }
+      case ROW_TYPE_WEATHER_RAIN3H: {
+        char r[8];
+        if (s_weather_rain3h >= 0) {
+          if (s_weather_rain3h > 100) s_weather_rain3h = 100;
+          snprintf(r, sizeof(r), "R%3d", s_weather_rain3h);
+        } else {
+          snprintf(r, sizeof(r), "R --");
+        }
+        size_t rl = strlen(r);
+        if (rl > 5) rl = 5;
+        int rstart = (5 - (int)rl) / 2;
+        for (size_t k = 0; k < rl; k++) slots[rstart + (int)k] = r[k];
+        break;
+      }
     }
 
     // Apply to slots and set fonts/colors
@@ -751,17 +785,8 @@ static void draw_all_rows(void) {
       if (s_ghost_layers[i][c]) {
         text_layer_set_text(s_ghost_layers[i][c], "8");
         text_layer_set_text_color(s_ghost_layers[i][c], s_ghost_color);
-        // Use smaller font on round for top/bottom rows
-#if defined(PBL_ROUND)
-        if (i == 0 || i == ROWS-1) {
-          if (s_font_dseg_25_reg) text_layer_set_font(s_ghost_layers[i][c], s_font_dseg_25_reg);
-        } else {
-          if (s_font_dseg_29_reg) text_layer_set_font(s_ghost_layers[i][c], s_font_dseg_29_reg);
-          else if (s_font_dseg_30_reg) text_layer_set_font(s_ghost_layers[i][c], s_font_dseg_30_reg);
-        }
-#else
-        if (s_font_dseg_30_reg) text_layer_set_font(s_ghost_layers[i][c], s_font_dseg_30_reg);
-#endif
+        GFont gf = choose_ghost_font_for_row(i);
+        if (gf) text_layer_set_font(s_ghost_layers[i][c], gf);
       }
       if (s_digit_layers[i][c]) {
         text_layer_set_text(s_digit_layers[i][c], s_slot_text[i][c]);
@@ -769,17 +794,8 @@ static void draw_all_rows(void) {
   text_layer_set_text_color(s_digit_layers[i][c], color);
   // Keep transparent background so ghost '8' shows except where glyph pixels render
   text_layer_set_background_color(s_digit_layers[i][c], GColorClear);
-  // Use smaller font on round for top/bottom rows
-#if defined(PBL_ROUND)
-        if (i == 0 || i == ROWS-1) {
-          if (s_font_dseg_25) text_layer_set_font(s_digit_layers[i][c], s_font_dseg_25);
-        } else {
-          if (s_font_dseg_29) text_layer_set_font(s_digit_layers[i][c], s_font_dseg_29);
-          else if (s_font_dseg_30) text_layer_set_font(s_digit_layers[i][c], s_font_dseg_30);
-        }
-#else
-  if (s_font_dseg_30) text_layer_set_font(s_digit_layers[i][c], s_font_dseg_30);
-#endif
+  GFont df = choose_digit_font_for_row(i);
+  if (df) text_layer_set_font(s_digit_layers[i][c], df);
       }
     }
   }
@@ -830,6 +846,7 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     // For BG_STATUS_OLD the SGV value is still valid (just stale), so keep it.
     if (s_bg_status == BG_STATUS_NO_DATA || s_bg_status == BG_STATUS_NO_CONN) {
       s_bg_sgv = -1;
+      s_bg_delta = -9999;
       s_bg_trend[0] = 0;
     }
   }
@@ -840,8 +857,11 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     strncpy(s_bg_trend, t->value->cstring, sizeof(s_bg_trend));
     s_bg_trend[sizeof(s_bg_trend)-1] = 0;
   }
-  if ((t = dict_find(iter, MESSAGE_KEY_BG_IOB))) {
-    s_iob_x100 = (int)t->value->int32; // IOB × 100 sent as int
+  if ((t = dict_find(iter, MESSAGE_KEY_BG_DELTA))) {
+    s_bg_delta = (int)t->value->int32;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_WEATHER_RAIN3H))) {
+    s_weather_rain3h = (int)t->value->int32;
   }
   // Fire vibe alert if a new valid BG just arrived
   check_bg_alerts();
@@ -899,7 +919,7 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     uint8_t b =  s_ghost_hex        & 0xFF;
     if (r < 0x55 && g < 0x55 && b < 0x55) { s_ghost_hex = 0x555555; }
   }
-  s_ghost_color = ColorFromHex(s_ghost_hex);
+  s_ghost_color = GhostColorFromHex(s_ghost_hex);
 #endif
   for (int i = 0; i < ROWS; i++) {
     for (int c = 0; c < 5; c++) {
@@ -917,14 +937,19 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     if ((t = dict_find(iter, key_color))) { s_row_color_hex[i] = (uint32_t)t->value->int32; s_row_colors[i] = ColorFromHex(s_row_color_hex[i]); config_changed = true; }
   }
 
-  // Shake overlay row config
-  if ((t = dict_find(iter, MESSAGE_KEY_SHAKE_ROW_TYPE))) {
-    s_shake_row_type = (RowType)t->value->int32;
-    config_changed = true;
+  for (int i = 0; i < ROWS; i++) {
+    int key_shake_type = MESSAGE_KEY_SHAKE_ROW1_TYPE + i;
+    if ((t = dict_find(iter, key_shake_type))) {
+      int v = t->value->int32;
+      if (v < -1) v = -1;
+      if (v > ROW_TYPE_WEATHER_RAIN3H) v = ROW_TYPE_WEATHER_RAIN3H;
+      s_shake_row_types[i] = (int8_t)v;
+      config_changed = true;
+    }
   }
-  if ((t = dict_find(iter, MESSAGE_KEY_SHAKE_ROW_COLOR))) {
-    s_shake_row_color_hex = (uint32_t)t->value->int32;
-    s_shake_row_color = ColorFromHex(s_shake_row_color_hex);
+  if ((t = dict_find(iter, MESSAGE_KEY_SHOW_GHOST_GRID))) {
+    s_show_ghost_grid = t->value->int32 != 0;
+    layout_rows();
     config_changed = true;
   }
   if ((t = dict_find(iter, MESSAGE_KEY_VIBE_ON_LOW))) {
@@ -1005,27 +1030,6 @@ static void main_window_load(Window *window) {
   layer_set_update_proc(s_weather_deg_layer, weather_deg_update_proc);
   layer_add_child(window_layer, s_weather_deg_layer);
 
-  // Shake overlay: label + value, centered, hidden by default
-  {
-    int16_t ov_h = 36;
-    int16_t ov_y = (bounds.size.h - ov_h) / 2;
-    s_shake_label_layer = text_layer_create(GRect(0, ov_y - 18, bounds.size.w, 20));
-    text_layer_set_background_color(s_shake_label_layer, GColorBlack);
-    text_layer_set_text_color(s_shake_label_layer, s_shake_row_color);
-    text_layer_set_font(s_shake_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-    text_layer_set_text_alignment(s_shake_label_layer, GTextAlignmentCenter);
-    layer_set_hidden(text_layer_get_layer(s_shake_label_layer), true);
-    layer_add_child(window_layer, text_layer_get_layer(s_shake_label_layer));
-
-    s_shake_value_layer = text_layer_create(GRect(0, ov_y, bounds.size.w, ov_h));
-    text_layer_set_background_color(s_shake_value_layer, GColorBlack);
-    text_layer_set_text_color(s_shake_value_layer, s_shake_row_color);
-    text_layer_set_font(s_shake_value_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
-    text_layer_set_text_alignment(s_shake_value_layer, GTextAlignmentCenter);
-    layer_set_hidden(text_layer_get_layer(s_shake_value_layer), true);
-    layer_add_child(window_layer, text_layer_get_layer(s_shake_value_layer));
-  }
-
   layout_rows();
   draw_all_rows();
 }
@@ -1076,8 +1080,6 @@ static void main_window_unload(Window *window) {
   }
   if (s_bg_trend_layer) { layer_destroy(s_bg_trend_layer); s_bg_trend_layer = NULL; }
   if (s_weather_deg_layer) { layer_destroy(s_weather_deg_layer); s_weather_deg_layer = NULL; }
-  if (s_shake_label_layer) { text_layer_destroy(s_shake_label_layer); s_shake_label_layer = NULL; }
-  if (s_shake_value_layer) { text_layer_destroy(s_shake_value_layer); s_shake_value_layer = NULL; }
 }
 
 static void init_defaults(void) {
@@ -1111,7 +1113,7 @@ static void init_defaults(void) {
 #endif
   for (int i=0;i<ROWS;i++) s_row_colors[i] = ColorFromHex(s_row_color_hex[i]);
   // Ghost grid color: dark grey on color displays; force white on BW (hatch overlay makes it appear mid-gray)
-  s_ghost_hex = 0x555555; s_ghost_color = ColorFromHex(s_ghost_hex);
+  s_ghost_hex = 0x555555; s_ghost_color = GhostColorFromHex(s_ghost_hex);
 #if defined(PBL_BW)
   s_ghost_color = GColorWhite; // BW has no gray; hatch overlay creates mid-gray appearance
 #endif
@@ -1120,10 +1122,11 @@ static void init_defaults(void) {
   s_col_in_hex = 0x00FF00; s_col_in = ColorFromHex(s_col_in_hex);
   s_bg_timeout_min = 20;
   s_bg_fetch_interval_min = 5;
+  s_bg_delta = -9999;
+  s_weather_rain3h = -1;
   s_weekday_lang = 1; // English default
-  s_shake_row_type = ROW_TYPE_STEPS;
-  s_shake_row_color_hex = 0xFFFFFF;
-  s_shake_row_color = ColorFromHex(s_shake_row_color_hex);
+  for (int i=0; i<ROWS; i++) s_shake_row_types[i] = -1;
+  s_show_ghost_grid = true;
   s_vibe_on_low        = false;
   s_vibe_on_high       = false;
   s_backlight_on_shake = true;
@@ -1134,7 +1137,7 @@ static void init_defaults(void) {
   }
   // Diorite 4-level grayscale: 0x444444 → lum=68 → level=1 → 85 = DarkGray (subtle, not white, not black)
   s_ghost_hex = 0x444444;
-  s_ghost_color = ColorFromHex(s_ghost_hex);
+  s_ghost_color = GhostColorFromHex(s_ghost_hex);
   s_col_low_hex = 0xFFFFFF;
   s_col_high_hex = 0xFFFFFF;
   s_col_in_hex = 0xFFFFFF;
@@ -1156,6 +1159,8 @@ static void init(void) {
   // Load fonts before creating/pushing window so layers can use them in load()
   s_font_dseg_30 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DSEG_30_BOLD));
   s_font_dseg_30_reg = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DSEG_30_REG));
+  s_font_dseg_34 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DSEG_34_BOLD));
+  s_font_dseg_34_reg = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DSEG_34_REG));
   // Smaller variants for round to fit tighter rows
 #if defined(PBL_ROUND)
   s_font_dseg_25 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DSEG_25_BOLD));
@@ -1177,7 +1182,7 @@ static void init(void) {
   tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   battery_state_service_subscribe(battery_handler);
   health_service_events_subscribe(health_handler, NULL);
-#if PBL_API_EXISTS(unobstructed_area_service_subscribe)
+#ifdef _PBL_API_EXISTS_unobstructed_area_service_subscribe
   unobstructed_area_service_subscribe((UnobstructedAreaHandlers) {
     .change = unobstructed_change,
     .did_change = unobstructed_did_change
@@ -1207,13 +1212,15 @@ static void deinit(void) {
   tick_timer_service_unsubscribe();
   battery_state_service_unsubscribe();
   health_service_events_unsubscribe();
-#if PBL_API_EXISTS(unobstructed_area_service_unsubscribe)
+#ifdef _PBL_API_EXISTS_unobstructed_area_service_unsubscribe
   unobstructed_area_service_unsubscribe();
 #endif
   app_focus_service_unsubscribe();
 
   fonts_unload_custom_font(s_font_dseg_30);
   if (s_font_dseg_30_reg) fonts_unload_custom_font(s_font_dseg_30_reg);
+  if (s_font_dseg_34) fonts_unload_custom_font(s_font_dseg_34);
+  if (s_font_dseg_34_reg) fonts_unload_custom_font(s_font_dseg_34_reg);
 #if defined(PBL_ROUND)
   if (s_font_dseg_25) fonts_unload_custom_font(s_font_dseg_25);
   if (s_font_dseg_25_reg) fonts_unload_custom_font(s_font_dseg_25_reg);
@@ -1232,7 +1239,7 @@ int main(void) {
 
 static void save_config_cache(void) {
   ConfigCache cc;
-  cc.version = 2;
+  cc.version = 4;
   for (int i=0;i<ROWS;i++) { cc.row_types[i] = s_row_types[i]; cc.row_color_hex[i] = s_row_color_hex[i]; }
   cc.ghost_hex = s_ghost_hex;
   cc.show_leading_zero = s_show_leading_zero ? 1 : 0;
@@ -1246,8 +1253,8 @@ static void save_config_cache(void) {
   cc.col_low_hex = s_col_low_hex;
   cc.col_high_hex = s_col_high_hex;
   cc.col_in_hex = s_col_in_hex;
-  cc.shake_row_type = s_shake_row_type;
-  cc.shake_row_color_hex = s_shake_row_color_hex;
+  for (int i=0; i<ROWS; i++) cc.shake_row_types[i] = s_shake_row_types[i];
+  cc.show_ghost_grid = s_show_ghost_grid ? 1 : 0;
   cc.vibe_on_low        = s_vibe_on_low        ? 1 : 0;
   cc.vibe_on_high       = s_vibe_on_high       ? 1 : 0;
   cc.backlight_on_shake = s_backlight_on_shake ? 1 : 0;
@@ -1258,16 +1265,16 @@ static void load_config_cache(void) {
   if (!persist_exists(PERSIST_CONFIG_KEY)) { init_defaults(); return; }
   ConfigCache cc;
   if (persist_read_data(PERSIST_CONFIG_KEY, &cc, sizeof(cc)) != (int)sizeof(cc)) { init_defaults(); return; }
-  if (cc.version != 2 && cc.version != 3) { init_defaults(); return; }
+  if (cc.version != 3 && cc.version != 4) { init_defaults(); return; }
   for (int i=0;i<ROWS;i++) { s_row_types[i] = cc.row_types[i]; s_row_color_hex[i] = cc.row_color_hex[i]; s_row_colors[i] = ColorFromHex(s_row_color_hex[i]); }
-  s_ghost_hex = cc.ghost_hex; s_ghost_color = ColorFromHex(s_ghost_hex);
+  s_ghost_hex = cc.ghost_hex; s_ghost_color = GhostColorFromHex(s_ghost_hex);
 #if defined(PBL_COLOR)
   // Clamp too-dark ghost to mid-grey on color for visibility
   {
     uint8_t r = (s_ghost_hex >> 16) & 0xFF;
     uint8_t g = (s_ghost_hex >>  8) & 0xFF;
     uint8_t b =  s_ghost_hex        & 0xFF;
-    if (r < 0x55 && g < 0x55 && b < 0x55) { s_ghost_hex = 0x555555; s_ghost_color = ColorFromHex(s_ghost_hex); }
+    if (r < 0x55 && g < 0x55 && b < 0x55) { s_ghost_hex = 0x555555; s_ghost_color = GhostColorFromHex(s_ghost_hex); }
   }
 #endif
 #if defined(PBL_PLATFORM_APLITE)
@@ -1285,10 +1292,8 @@ static void load_config_cache(void) {
   s_col_low_hex = cc.col_low_hex; s_col_low = ColorFromHex(s_col_low_hex);
   s_col_high_hex = cc.col_high_hex; s_col_high = ColorFromHex(s_col_high_hex);
   s_col_in_hex = cc.col_in_hex; s_col_in = ColorFromHex(s_col_in_hex);
-  s_shake_row_type = cc.shake_row_type;
-  s_shake_row_color_hex = cc.shake_row_color_hex;
-  s_shake_row_color = ColorFromHex(s_shake_row_color_hex);
-  // New in version 3 – gracefully default to false/true if loading a v2 cache
+  for (int i=0; i<ROWS; i++) s_shake_row_types[i] = (cc.version >= 4) ? cc.shake_row_types[i] : -1;
+  s_show_ghost_grid = (cc.version >= 4) ? (cc.show_ghost_grid != 0) : true;
   s_vibe_on_low        = (cc.version >= 3) ? (cc.vibe_on_low        != 0) : false;
   s_vibe_on_high       = (cc.version >= 3) ? (cc.vibe_on_high       != 0) : false;
   s_backlight_on_shake = (cc.version >= 3) ? (cc.backlight_on_shake != 0) : true;
@@ -1298,7 +1303,7 @@ static void load_config_cache(void) {
     s_row_colors[i] = ColorFromHex(s_row_color_hex[i]);
   }
   s_ghost_hex = 0x777777;
-  s_ghost_color = ColorFromHex(s_ghost_hex);
+  s_ghost_color = GhostColorFromHex(s_ghost_hex);
   s_col_low_hex = 0xFFFFFF;
   s_col_high_hex = 0xFFFFFF;
   s_col_in_hex = 0xFFFFFF;
