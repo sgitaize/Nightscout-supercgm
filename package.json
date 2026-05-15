@@ -29,6 +29,20 @@
         },
         {
           "type": "font",
+          "name": "FONT_DSEG_34_BOLD",
+          "file": "fonts/DSEG14Classic-Bold.ttf",
+          "size": 34,
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
+        },
+        {
+          "type": "font",
+          "name": "FONT_DSEG_34_REG",
+          "file": "fonts/DSEG14Classic-Regular.ttf",
+          "size": 34,
+          "characterRegex": "[0-9A-Z:.%/ °F-]"
+        },
+        {
+          "type": "font",
           "name": "FONT_DSEG_29_BOLD",
           "file": "fonts/DSEG14Classic-Bold.ttf",
           "size": 29,
@@ -103,7 +117,21 @@
       "BG_TIMESTAMP",
       "BG_STATUS",
       "BG_UNIT",
-      "BG_TREND"
+      "BG_TREND",
+      "SHAKE_ROW_TYPE",
+      "SHAKE_ROW_COLOR",
+      "VIBE_ON_LOW",
+      "VIBE_ON_HIGH",
+      "BACKLIGHT_ON_SHAKE",
+      "BG_IOB",
+      "SHAKE_ROW1_TYPE",
+      "SHAKE_ROW2_TYPE",
+      "SHAKE_ROW3_TYPE",
+      "SHAKE_ROW4_TYPE",
+      "SHAKE_ROW5_TYPE",
+      "SHOW_GHOST_GRID",
+      "BG_DELTA",
+      "WEATHER_RAIN3H"
     ],
     "capabilities": [
       "configurable",
@@ -117,7 +145,10 @@
       "aplite",
       "basalt",
       "chalk",
-      "diorite"
+      "diorite",
+      "emery",
+      "flint",
+      "gabbro"
     ]
   }
 }

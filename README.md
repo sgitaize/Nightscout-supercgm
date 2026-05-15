@@ -22,15 +22,17 @@ About **90 % of the code was developed collaboratively with GitHub Copilot (Clau
 ## ✨ Features
 
 - **Customizable rows (per row choose one):**  
-  Weather · Time · Date · Weekday · Battery · Nightscout BG · Steps · Heart Rate
+  Weather · Time · Date · Weekday · Battery · Nightscout BG · Steps · Heart Rate · BG Time · BG Delta · Rain next 3h
 - **Per-row color customization**, plus in-range / high / low BG colors and ghost grid color
+- **Improved color UX in config:** native color picker + live swatch preview + readable color labels
 - **Ghost grid contrast** — DarkGray on color displays; B/W platforms (Aplite, Diorite) use a 50 % checkerboard hatch overlay for a natural mid-gray look
-- **Phone-side background fetch** for Nightscout BG (interval configurable)
-- **Weather via Open-Meteo** (no API key needed, supports °C/°F)
+- **Phone-side background fetch** for Nightscout BG (manual interval or timestamp-synced mode)
+- **Weather via Open-Meteo** (no API key needed, supports °C/°F) + rain probability for next 3 hours
 - **Persistent storage** on watch and phone (survives restarts)
 - **Platform-aware layout:**
-  - Rectangular (Aplite/Diorite/Basalt/Time): 5 rows
-  - Round (Chalk): 4 rows with tighter vertical spacing; top/bottom rows show 4 digits
+  - Rectangular (Aplite/Diorite/Basalt/Flint/Emery): 5 rows
+  - Legacy round (Chalk): 4 rows with tighter vertical spacing
+  - Round 2 (Gabbro): tuned round layout with 5 rows
 
 ### 🔔 Alerts & Behaviour
 - **Vibration on low BG** — 3 short pulses (configurable, 10-minute cooldown)
@@ -42,8 +44,9 @@ About **90 % of the code was developed collaboratively with GitHub Copilot (Clau
 Shake or tap the watch to overlay extra info for 5 seconds.  
 Configurable content:
 - Steps · Battery · Heart Rate · BG / CGM
-- **BG Time** — time of last Nightscout reading + age in minutes
-- **IOB** — Insulin on Board (requires Nightscout `/pebble` endpoint with `iob` field)
+- **BG Time** — time of last Nightscout reading
+- **BG Delta** — signed delta from Nightscout (`bgdelta`, e.g. +6 / -4)
+- **Rain next 3h** — rain probability forecast for your location
 
 ---
 
@@ -53,6 +56,9 @@ Configurable content:
 |---|---|---|
 | Basalt (Pebble Time) | Color | 5 |
 | Chalk (Pebble Time Round) | Color, round | 4 |
+| Gabbro (Pebble Round 2) | Color, round | 5 |
+| Flint (new rectangular) | Color | 5 |
+| Emery (Pebble Time 2) | Color | 5 |
 | Aplite (Pebble / Pebble Steel) | B/W | 5 |
 | Diorite (Pebble 2) | 4-level grayscale | 5 |
 
@@ -62,7 +68,8 @@ Configurable content:
 
 Open the watchface settings from the Pebble/Rebble phone app.  
 The settings page (`/config20`) adapts to the platform (row count, B/W palette).  
-All labels and options are in English.
+Default language is **English** with an in-page **English/German language chooser**.
+Presets include legacy models plus **Time 2** and **Round 2**.
 
 ---
 
@@ -71,7 +78,8 @@ All labels and options are in English.
 - Enter your base Nightscout URL; the app requests `<URL>/pebble`.
 - If no BG is available → displays **NO-BG**; if connection lost → **NOCON**; if stale → **OLD-BG**.
 - Trend arrows are drawn natively (↑, ↗, →, ↘, ↓ and double variants).
-- IOB (Insulin on Board) is parsed from the `iob` field in the `/pebble` response.
+- BG delta is parsed from `bgs[0].bgdelta` and can be shown as row value.
+- Sync mode uses `status[0].now` as server time and `bgs[0].datetime` as reading time to schedule the next fetch (`datetime + interval + 30s`).
 
 ---
 
@@ -81,13 +89,13 @@ Prerequisites: [Rebble SDK](https://developer.rebble.io/developer.pebble.com/sdk
 
 **Quick start**
 ```bash
-python3 patch_keys.py && pebble build       # Always use this; patches waf key cache
+pebble build                                # Build app + regenerate message key artifacts
 pebble install --phone <PHONE_IP>           # Install on phone
-pebble install --emulator chalk             # Test on Round emulator
+pebble install --emulator chalk             # Test on legacy Round emulator
+pebble install --emulator gabbro            # Test on Round 2 emulator
+pebble install --emulator emery             # Test on Time 2 emulator
 pebble install --emulator diorite           # Test on B/W emulator
 ```
-
-> ⚠️ **Important:** Always run `python3 patch_keys.py` before `pebble build` when `appinfo.json` appKeys have changed. The pebble waf build system caches keys and does not auto-regenerate `MESSAGE_KEY_*` symbols.
 
 **Deploy config website**
 ```bash

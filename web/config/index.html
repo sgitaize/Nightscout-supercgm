@@ -9,18 +9,25 @@
 <body>
   <header class="hero">
     <div>
-      <p class="eyebrow">supercgm-ns · SDK 3 ready</p>
-      <h1>Pick your watch and configure in one go</h1>
-      <p class="lede">Choose your Pebble model to get the right row count (4 for Round, 5 for rectangular) and a contrast-safe palette. All colors are quantized so parameters transfer reliably to every Pebble generation.</p>
+      <div class="lang-picker">
+        <label for="langChooser" id="langLabel">Language</label>
+        <select id="langChooser">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </div>
+      <p class="eyebrow" id="heroEyebrow">supercgm-ns v2.0</p>
+      <h1 id="heroTitle">Pick your watch and configure in one go</h1>
+      <p class="lede" id="heroLede">Choose your Pebble model to get the right row count (4 for legacy Round, 5 for rectangular and Round 2) and a contrast-safe palette. All colors are quantized so parameters transfer reliably to every Pebble generation.</p>
       <div class="hero-tags">
-        <span class="tag">Works with new Pebble app</span>
-        <span class="tag">Contrast-first presets</span>
-        <span class="tag">Color-safe transfers</span>
+        <span class="tag" id="heroTag1">Works with new Pebble app</span>
+        <span class="tag" id="heroTag2">Contrast-first presets</span>
+        <span class="tag" id="heroTag3">Color-safe transfers</span>
       </div>
     </div>
     <div class="hero-card">
-      <h3>Watch presets</h3>
-      <p>Select your model. Switching presets updates row count, palette (B/W for Classic & Pebble 2), and default colors.</p>
+      <h3 id="presetTitle">Watch presets</h3>
+      <p id="presetIntro">Select your model. Switching presets updates row count, palette (B/W for Classic & Pebble 2), and default colors.</p>
       <div id="preset-grid" class="preset-grid"></div>
     </div>
   </header>
@@ -28,8 +35,8 @@
   <div class="container">
     <section class="card">
       <div class="section-head">
-        <h2>Rows</h2>
-        <p>Pick a type and color per row. Round watches hide the edge slots but we still send all five slots to keep transfers stable on every Pebble.</p>
+        <h2 id="rowsTitle">Rows</h2>
+        <p id="rowsIntro">Pick a type and color per row. Round watches hide the edge slots but we still send all five slots to keep transfers stable on every Pebble.</p>
       </div>
       <div id="rows-form" class="rows-form">
         <div class="rowline">
@@ -38,6 +45,7 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="0" value="#00ffff">
+            <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Cyan (#00FFFF)</span></span>
             <select class="row-color-fallback" data-index="0" hidden></select>
           </label>
         </div>
@@ -47,6 +55,7 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="1" value="#ffffff">
+            <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">White (#FFFFFF)</span></span>
             <select class="row-color-fallback" data-index="1" hidden></select>
           </label>
         </div>
@@ -56,6 +65,7 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="2" value="#aaaaaa">
+            <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Light Gray (#AAAAAA)</span></span>
             <select class="row-color-fallback" data-index="2" hidden></select>
           </label>
         </div>
@@ -65,6 +75,7 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="3" value="#aaaaaa">
+            <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Light Gray (#AAAAAA)</span></span>
             <select class="row-color-fallback" data-index="3" hidden></select>
           </label>
         </div>
@@ -74,6 +85,7 @@
           </label>
           <label>Color
             <input class="row-color" type="color" data-index="4" value="#00ff00">
+            <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Green (#00FF00)</span></span>
             <select class="row-color-fallback" data-index="4" hidden></select>
           </label>
         </div>
@@ -82,102 +94,122 @@
 
     <section class="card">
       <div class="section-head">
-        <h2>Formatting</h2>
-        <p>Everything is quantized to Pebble-safe colors. Adjust date, weekday language, and refresh intervals.</p>
+        <h2 id="formatTitle">Formatting</h2>
+        <p id="formatIntro">Everything is quantized to Pebble-safe colors. Adjust date, weekday language, and refresh intervals.</p>
       </div>
-      <label><input type="checkbox" id="leadingZero" checked> Leading zero for time</label>
+      <label><input type="checkbox" id="leadingZero" checked> <span id="leadingZeroLabel">Leading zero for time</span></label>
       <div class="inline-options">
-        <div>Date format:</div>
+        <div id="dateFormatLabel">Date format:</div>
         <label><input type="radio" name="datefmt" value="0" checked> dd/mm</label>
         <label><input type="radio" name="datefmt" value="1"> mm/dd</label>
       </div>
       <div class="inline-options">
-        <div>Weekday language:</div>
-          <label><input type="radio" name="wdlang" value="0"> German</label>
-          <label><input type="radio" name="wdlang" value="1" checked> English</label>
+        <div id="weekdayLangLabel">Weekday language:</div>
+          <label><input type="radio" name="wdlang" value="0"> <span id="weekdayDeLabel">German</span></label>
+          <label><input type="radio" name="wdlang" value="1" checked> <span id="weekdayEnLabel">English</span></label>
       </div>
       <div class="inline-options">
-        <div>Temperature unit:</div>
+        <div id="tempUnitLabel">Temperature unit:</div>
         <label><input type="radio" name="tempunit" value="C" checked> °C</label>
         <label><input type="radio" name="tempunit" value="F"> °F</label>
       </div>
       <div class="inline-options">
-        <div>Weather refresh (min):</div>
+        <div id="weatherRefreshLabel">Weather refresh (min):</div>
         <input type="number" id="weatherInt" value="30" min="5" max="180" inputmode="numeric">
       </div>
     </section>
 
     <section class="card" id="bg-section">
       <div class="section-head">
-        <h2>Nightscout</h2>
-        <p>Only shown when at least one row is set to Nightscout BG. Set URL, timeout, refresh, thresholds, and colors.</p>
+        <h2 id="bgTitle">Nightscout</h2>
+        <p id="bgIntro">Only shown when at least one row is set to Nightscout BG. Set URL, timeout, refresh, thresholds, and colors.</p>
       </div>
-      <label>Nightscout URL <input type="url" id="bgUrl" placeholder="https://myns.example.com"></label>
-      <label>Timeout (min) <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
-      <label>BG Refresh (min) <input type="number" id="bgFetchInt" value="5" min="1" max="180" inputmode="numeric"></label>
+      <label><span id="bgUrlLabel">Nightscout URL</span> <input type="url" id="bgUrl" placeholder="https://myns.example.com"></label>
+      <label><span id="bgTimeoutLabel">Timeout (min)</span> <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
+      <label><span id="bgRefreshLabel">BG interval (min)</span> <input type="number" id="bgFetchInt" value="5" min="1" max="180" inputmode="numeric"></label>
+      <label><input type="checkbox" id="syncBgWithInterval" checked> <span id="syncBgWithIntervalLabel">Sync with BG interval (timestamp + 30s)</span></label>
+      <label id="bgManualWrap"><span id="bgManualLabel">Manual fetch interval (min)</span> <input type="number" id="bgManualInt" value="5" min="1" max="180" inputmode="numeric"></label>
       <div class="inline-options">
-        <div>CGM Unit:</div>
+        <div id="cgmUnitLabel">CGM Unit:</div>
         <label><input type="radio" name="bgunit" value="mgdl" checked> mg/dL</label>
         <label><input type="radio" name="bgunit" value="mmol"> mmol/L</label>
       </div>
       <div class="thresholds">
-        <label>Low <input type="number" id="low" value="80"></label>
-        <label>High <input type="number" id="high" value="180"></label>
+        <label><span id="lowLabel">Low</span> <input type="number" id="low" value="80"></label>
+        <label><span id="highLabel">High</span> <input type="number" id="high" value="180"></label>
       </div>
       <div class="colors">
-        <label>Color Low
+        <label><span id="colorLowLabel">Color Low</span>
           <input type="color" id="colLow" value="#ff0000">
+          <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Red (#FF0000)</span></span>
           <select id="colLowFallback" hidden></select>
         </label>
-        <label>Color In-range
+        <label><span id="colorInLabel">Color In-range</span>
           <input type="color" id="colIn" value="#00ff00">
+          <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Green (#00FF00)</span></span>
           <select id="colInFallback" hidden></select>
         </label>
-        <label>Color High
+        <label><span id="colorHighLabel">Color High</span>
           <input type="color" id="colHigh" value="#ffff00">
+          <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Yellow (#FFFF00)</span></span>
           <select id="colHighFallback" hidden></select>
         </label>
-        <label>Ghost Color
+        <label><span id="ghostColorLabel">Ghost Color</span>
           <input type="color" id="ghost" value="#555555">
+          <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Dark Gray (#555555)</span></span>
           <select id="ghostFallback" hidden></select>
         </label>
+	    <label><input type="checkbox" id="showGhostGrid" checked> <span id="showGhostGridLabel">Show ghost background grid</span></label>
 	  </div>
     </section>
 
     <section class="card">
       <div class="section-head">
-        <h2>Shake to Reveal</h2>
-        <p>Shake or tap the watch to show extra info for 5 seconds.</p>
+        <h2 id="shakeTitle">Shake to Reveal</h2>
+        <p id="shakeIntro">Shake or tap the watch to temporarily replace selected rows for 5 seconds using the same 5-digit look.</p>
       </div>
-      <label>Content
-        <select id="shakeRowType">
-          <option value="6">Steps</option>
-          <option value="7">Heart Rate</option>
-          <option value="4">Battery</option>
-          <option value="5">BG / CGM</option>
-          <option value="8">BG Time (last reading)</option>
-          <option value="9">IOB – Insulin on Board</option>
-        </select>
-      </label>
-      <label>Color
-        <input type="color" id="shakeRowColor" value="#ffffff">
-        <select id="shakeRowColorFallback" hidden></select>
-      </label>
+      <div id="shake-rows-form" class="rows-form">
+        <div class="rowline shake-rowline">
+          <label>Row 1 2nd value
+            <select class="shake-row-type" data-index="0"></select>
+          </label>
+        </div>
+        <div class="rowline shake-rowline">
+          <label>Row 2 2nd value
+            <select class="shake-row-type" data-index="1"></select>
+          </label>
+        </div>
+        <div class="rowline shake-rowline">
+          <label>Row 3 2nd value
+            <select class="shake-row-type" data-index="2"></select>
+          </label>
+        </div>
+        <div class="rowline shake-rowline">
+          <label>Row 4 2nd value
+            <select class="shake-row-type" data-index="3"></select>
+          </label>
+        </div>
+        <div class="rowline shake-rowline">
+          <label>Row 5 2nd value
+            <select class="shake-row-type" data-index="4"></select>
+          </label>
+        </div>
+      </div>
     </section>
 
       <section class="card">
         <div class="section-head">
-          <h2>Alerts &amp; Behaviour</h2>
-          <p>Vibration alerts fire at most once per 10 minutes. Disconnect from phone triggers one short buzz automatically.</p>
+          <h2 id="alertsTitle">Alerts &amp; Behaviour</h2>
+          <p id="alertsIntro">Vibration alerts fire at most once per 10 minutes. Disconnect from phone triggers one short buzz automatically.</p>
         </div>
-        <label><input type="checkbox" id="vibeOnLow"> Vibrate when BG is <strong>low</strong> (3 short pulses)</label>
-        <label><input type="checkbox" id="vibeOnHigh"> Vibrate when BG is <strong>high</strong> (2 short pulses)</label>
-        <label><input type="checkbox" id="backlightOnShake" checked> Turn on backlight when shaking the watch</label>
+        <label><input type="checkbox" id="vibeOnLow"> <span id="vibeLowLabel">Vibrate when BG is low (3 short pulses)</span></label>
+        <label><input type="checkbox" id="vibeOnHigh"> <span id="vibeHighLabel">Vibrate when BG is high (2 short pulses)</span></label>
+        <label><input type="checkbox" id="backlightOnShake" checked> <span id="backlightLabel">Turn on backlight when shaking the watch</span></label>
       </section>
 
     <div class="actions card">
       <div class="action-info">
-        <p><strong>Tip:</strong> Round watches hide the outer slots on the first/last row; data is still sent so every Pebble app stays stable.</p>
+        <p id="tipText"><strong>Tip:</strong> Round watches hide the outer slots on the first/last row; data is still sent so every Pebble app stays stable.</p>
       </div>
       <div class="action-buttons">
         <button id="reload" class="secondary">Reload</button>
@@ -187,8 +219,8 @@
     </div>
 
     <section class="card" id="color-legend">
-      <h2>Compatible palette</h2>
-      <p>Only Pebble-safe colors are sent. B/W watches get grayscale steps; Pebble 2 forces white text with mid-gray ghost.</p>
+      <h2 id="paletteTitle">Compatible palette</h2>
+      <p id="paletteIntro">Only Pebble-safe colors are sent. B/W watches get grayscale steps; Pebble 2 forces white text with mid-gray ghost.</p>
       <ul id="color-legend-list" class="color-legend"></ul>
     </section>
   </div>
