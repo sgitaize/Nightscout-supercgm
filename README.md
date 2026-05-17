@@ -12,7 +12,7 @@ About **90 % of the code was developed collaboratively with GitHub Copilot (Clau
 
 If this watchface saves you from checking your phone 50 times a day — consider buying me a Paulaner Spezi!
 
-[![Buy me a Paulaner Spezi](https://img.shields.io/badge/PayPal-Buy%20me%20a%20Paulaner%20Spezi%20🥤-009cde?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?hosted_button_id=LGAZB9PR4YV5L)
+[![Buy me a Paulaner Spezi](https://img.shields.io/badge/PayPal-Buy%20me%20a%20Paulaner%20Spezi%20%F0%9F%A5%A4-009cde?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?hosted_button_id=LGAZB9PR4YV5L)
 
 ---
 
