@@ -592,6 +592,10 @@ static void draw_all_rows(void) {
     RowType row_type = s_row_types[i];
     if (s_shake_active && s_shake_row_types[i] >= 0) {
       row_type = (RowType)s_shake_row_types[i];
+      // BG row overridden by shake: hide trend arrow so it doesn't linger
+      if (s_row_types[i] == ROW_TYPE_BG && row_type != ROW_TYPE_BG && s_bg_trend_layer) {
+        layer_set_hidden(s_bg_trend_layer, true);
+      }
     }
 
   switch (row_type) {
