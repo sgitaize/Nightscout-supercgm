@@ -14,7 +14,7 @@ If this watchface saves you from checking your phone 50 times a day — consider
 
 <p align="center">
   <a href="https://www.paypal.com/donate/?hosted_button_id=LGAZB9PR4YV5L">
-    <img src="https://img.shields.io/badge/%F0%9F%A5%A4%20Buy%20me%20a%20Paulaner%20Spezi-Donate%20via%20PayPal-009cde?style=for-the-badge&logo=paypal&logoColor=white" width="420" alt="Buy me a Paulaner Spezi">
+    <img src="https://img.shields.io/badge/%F0%9F%A5%A4%20Buy%20me%20a%20Paulaner%20Spezi-Donate%20via%20PayPal-009cde?style=for-the-badge&logo=paypal&logoColor=white" width="500" height="70" alt="Buy me a Paulaner Spezi">
   </a>
 </p>
 
