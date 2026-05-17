@@ -206,7 +206,7 @@ static void update_heart_rate(void) {
 
 static GRect get_layout_bounds(void) {
   Layer *window_layer = window_get_root_layer(s_main_window);
-  return layer_get_unobstructed_bounds(window_layer);
+  return layer_get_bounds(window_layer);
 }
 
 // Persisted configuration cache
@@ -420,13 +420,10 @@ static void layout_rows(void) {
     if (s_row_types[i] == ROW_TYPE_WEATHER) weather_index = i;
   }
   if (s_bg_trend_layer) {
-    if (bg_index >= 0) {
-      // draw_all_rows() is the authoritative positioner for the trend layer;
-      // here we only ensure it is not hidden when a BG row exists.
-      layer_set_hidden(s_bg_trend_layer, false);
-    } else {
+    if (bg_index < 0) {
       layer_set_hidden(s_bg_trend_layer, true);
     }
+    // draw_all_rows() is authoritative for showing/hiding based on BG status
   }
   if (s_weather_deg_layer) {
     if (weather_index >= 0) {
@@ -463,6 +460,7 @@ static void health_handler(HealthEventType event, void *context) {
 #ifdef _PBL_API_EXISTS_unobstructed_area_service_subscribe
 static void unobstructed_change(AnimationProgress progress, void *context) {
   layout_rows();
+  draw_all_rows();
 }
 
 static void unobstructed_did_change(void *context) {
@@ -575,6 +573,13 @@ static void draw_all_rows(void) {
   }
 
   // Assign texts and colors per row into 5 slots
+  // Hide degree overlay once before the loop; only the weather case will re-enable it.
+#if !defined(PBL_ROUND)
+  if (s_weather_deg_layer) {
+    layer_set_hidden(s_weather_deg_layer, true);
+  }
+#endif
+
   for (int i = 0; i < ROWS; i++) {
     GColor color = s_row_colors[i];
 #if defined(PBL_PLATFORM_APLITE)
@@ -588,13 +593,6 @@ static void draw_all_rows(void) {
     if (s_shake_active && s_shake_row_types[i] >= 0) {
       row_type = (RowType)s_shake_row_types[i];
     }
-
-    // Hide degree overlay by default; only show if this row is weather
-#if !defined(PBL_ROUND)
-    if (s_weather_deg_layer) {
-      layer_set_hidden(s_weather_deg_layer, true);
-    }
-#endif
 
   switch (row_type) {
       case ROW_TYPE_TIME:
@@ -661,31 +659,27 @@ static void draw_all_rows(void) {
           // position overlay near the right
           GRect bounds = get_layout_bounds();
           int16_t row_h = bounds.size.h / ROWS;
+          int16_t y_off = 0;
+          int16_t gap = 0;
 #if defined(PBL_ROUND)
-          // Keep in sync with layout_rows()
+          // Mirror layout_rows() exactly so overlay stays aligned with digit layers
+#if defined(PBL_PLATFORM_GABBRO)
+          row_h = (int16_t)((bounds.size.h / ROWS) * 0.90f);
+          y_off = (bounds.size.h - (row_h * ROWS)) / 2;
+          gap = 2;
+#else
           row_h = (int16_t)((bounds.size.h / ROWS) * 0.66f);
-          int16_t y_off = (bounds.size.h - (row_h * ROWS)) / 2;
-          int16_t gap = 5;
+          y_off = (bounds.size.h - (row_h * ROWS)) / 2;
+          gap = 5;
+#endif
 #endif
           int16_t slot_w = bounds.size.w / 5;
           int16_t left_pad = (bounds.size.w - slot_w * 5) / 2;
           int16_t x_origin = bounds.origin.x;
           int16_t y_origin = bounds.origin.y;
-          int slot_index;
-#if defined(PBL_ROUND)
-          // Rightmost slot (4)
-          slot_index = 4;
-#else
-          slot_index = 4;
-#endif
-          int16_t y_base = y_origin + i * row_h;
-#if defined(PBL_ROUND)
-          y_base = y_origin + y_off + i * row_h + i * gap;
-#endif
-          int16_t frame_h = row_h;
-#if defined(PBL_ROUND)
-          frame_h = row_h - gap;
-#endif
+          int slot_index = 4;
+          int16_t y_base = y_origin + y_off + i * row_h + i * gap;
+          int16_t frame_h = (gap > 0) ? row_h - gap : row_h;
           GRect frame = GRect(x_origin + left_pad + slot_index * slot_w, y_base, slot_w, frame_h);
           layer_set_frame(s_bg_trend_layer, frame);
           layer_set_hidden(s_bg_trend_layer, false);
@@ -782,22 +776,27 @@ static void draw_all_rows(void) {
         if (s_bg_timestamp > 0) {
           struct tm *lt = localtime(&s_bg_timestamp);
           char ts[6];
-          snprintf(ts, sizeof(ts), "%02d%02d", lt->tm_hour, lt->tm_min);
-          slots[0] = ' ';
-          for (int k = 0; k < 4; k++) slots[k + 1] = ts[k];
+          snprintf(ts, sizeof(ts), "%02d:%02d", lt->tm_hour, lt->tm_min);
+          for (int k = 0; k < 5; k++) slots[k] = ts[k];
         } else {
-          slots[0] = ' ';
+          slots[0] = '-';
           slots[1] = '-';
-          slots[2] = '-';
-          slots[3] = ' ';
-          slots[4] = ' ';
+          slots[2] = ':';
+          slots[3] = '-';
+          slots[4] = '-';
         }
         break;
       }
       case ROW_TYPE_BG_DELTA: {
         char d[8];
         if (s_bg_status == BG_STATUS_OK && s_bg_delta != -9999) {
-          snprintf(d, sizeof(d), "%+d", s_bg_delta);
+          if (s_bg_delta > 0) {
+            snprintf(d, sizeof(d), "+%d", s_bg_delta);
+          } else if (s_bg_delta < 0) {
+            snprintf(d, sizeof(d), "%d", s_bg_delta);
+          } else {
+            d[0] = 0; // delta == 0: show nothing
+          }
         } else {
           snprintf(d, sizeof(d), "--");
         }
@@ -811,9 +810,9 @@ static void draw_all_rows(void) {
         char r[8];
         if (s_weather_rain3h >= 0) {
           if (s_weather_rain3h > 100) s_weather_rain3h = 100;
-          snprintf(r, sizeof(r), "R%3d", s_weather_rain3h);
+          snprintf(r, sizeof(r), "R%2d%%", s_weather_rain3h);
         } else {
-          snprintf(r, sizeof(r), "R --");
+          snprintf(r, sizeof(r), "R--%%" );
         }
         size_t rl = strlen(r);
         if (rl > 5) rl = 5;
