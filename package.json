@@ -1,6 +1,6 @@
 {
   "name": "Nightscout Supercgm",
-  "version": "2.0",
+  "version": "2.1",
   "description": "Watchface with 5 flexible rows: time, date, weekday, battery, weather, Nightscout BG, steps.",
   "author": "sgitaize",
   "license": "MIT",
@@ -132,7 +132,8 @@
       "SHOW_GHOST_GRID",
       "GHOST_DENSITY",
       "BG_DELTA",
-      "WEATHER_RAIN3H"
+      "WEATHER_RAIN3H",
+      "DISPLAY_BG_COLOR"
     ],
     "capabilities": [
       "configurable",
