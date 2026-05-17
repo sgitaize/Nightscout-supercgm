@@ -4,7 +4,7 @@
   var I18N = {
     en: {
       language: 'Language',
-      heroEyebrow: 'supercgm-ns v2.0',
+      heroEyebrow: 'supercgm-ns v2.1',
       heroTitle: 'Pick your watch and configure in one go',
       heroLede: 'Choose your Pebble model to get the right row count (4 for legacy Round, 5 for rectangular and Round 2) and a contrast-safe palette. All colors are quantized so parameters transfer reliably to every Pebble generation.',
       heroTag1: 'Works with new Pebble app',
@@ -54,7 +54,7 @@
       backlightLabel: 'Turn on backlight when shaking the watch',
       tipText: '<strong>Tip:</strong> Round watches hide the outer slots on the first/last row; data is still sent so every Pebble app stays stable.',
       paletteTitle: 'Compatible palette',
-      paletteIntro: 'Only Pebble-safe colors are sent. B/W watches get grayscale steps; Pebble 2 forces white text with mid-gray ghost.',
+      paletteIntro: 'Only Pebble-safe colors are sent. B/W watches (Classic, Steel, Pebble 2) get black and white only. Color watches get the full 64-color palette.',
       reload: 'Reload',
       save: 'Save',
       cancel: 'Cancel',
@@ -64,6 +64,9 @@
       rowsMeta: 'Rows',
       bwMeta: 'B/W',
       colorMeta: 'Color',
+      bgColorLabel: 'Background:',
+      bgBlackLabel: 'Black',
+      bgWhiteLabel: 'White (inverted)',
       rowTypes: {
         0: 'Weather', 1: 'Time', 2: 'Date', 3: 'Weekday', 4: 'Battery',
         5: 'Nightscout BG', 6: 'Steps', 7: 'Heart Rate', 8: 'BG Time (last)',
@@ -75,18 +78,17 @@
         '9': 'BG Delta', '10': 'Rain next 3h'
       },
       presets: {
-        chalk: { label: 'Pebble Time Round', description: '4 rows, strong contrast for the round display.' },
-        basalt: { label: 'Pebble Time / Steel', description: 'Full color with high-contrast accents on 5 rows.' },
-        diorite: { label: 'Pebble 2 (B/W)', description: 'Black/white only; colors forced to white text with mid-gray ghost.' },
-        aplite: { label: 'Pebble Classic (B/W)', description: 'Grayscale palette for strong readability.' },
-        time2: { label: 'Pebble Time 2', description: 'Large rectangular display tuned for bigger digits and spacing.' },
-        round2: { label: 'Pebble Round 2', description: 'Large round display with 5-row tuned layout.' },
-        contrast: { label: 'Color High Contrast', description: 'Maximum contrast for bright environments.' }
+        aplite:  { label: 'Pebble Classic / Steel', description: 'B/W only — all text is white. 5 rows.' },
+        basalt:  { label: 'Pebble Time / Steel',    description: 'Full Pebble color palette on 5 rows.' },
+        chalk:   { label: 'Pebble Time Round',      description: 'Round display, 4 rows, full color.' },
+        diorite: { label: 'Pebble 2 / Core2Duo',    description: 'B/W display — black and white only. Color reverse supported. 5 rows.' },
+        time2:   { label: 'Pebble Time 2',          description: 'Large rectangular display, full color, 5 rows.' },
+        round2:  { label: 'Pebble Round 2',         description: 'Large round display, full color, 5 rows.' }
       }
     },
     de: {
       language: 'Sprache',
-      heroEyebrow: 'supercgm-ns v2.0',
+      heroEyebrow: 'supercgm-ns v2.1',
       heroTitle: 'Waehle deine Uhr und konfiguriere alles in einem Schritt',
       heroLede: 'Waehle dein Pebble-Modell fuer die richtige Zeilenzahl (4 bei alter Round, 5 bei rechteckigen Modellen und Round 2) und eine kontrastsichere Palette. Alle Farben werden Pebble-kompatibel quantisiert.',
       heroTag1: 'Funktioniert mit neuer Pebble-App',
@@ -136,7 +138,7 @@
       backlightLabel: 'Hintergrundlicht beim Schuetteln aktivieren',
       tipText: '<strong>Tipp:</strong> Bei Round sind die Aussen-Slots in der ersten/letzten Zeile versteckt; die Daten werden fuer stabile Pebble-App-Kompatibilitaet trotzdem gesendet.',
       paletteTitle: 'Kompatible Palette',
-      paletteIntro: 'Es werden nur Pebble-sichere Farben gesendet. S/W-Modelle nutzen Graustufen; Pebble 2 nutzt weisse Schrift mit mittlerem Ghost-Grau.',
+      paletteIntro: 'Es werden nur Pebble-sichere Farben gesendet. S/W-Uhren (Classic, Steel, Pebble 2) nutzen nur Schwarz und Weiss. Farbuhren erhalten die volle 64-Farb-Palette.',
       reload: 'Neu laden',
       save: 'Speichern',
       cancel: 'Abbrechen',
@@ -146,6 +148,9 @@
       rowsMeta: 'Zeilen',
       bwMeta: 'S/W',
       colorMeta: 'Farbe',
+      bgColorLabel: 'Hintergrund:',
+      bgBlackLabel: 'Schwarz',
+      bgWhiteLabel: 'Weiss (invertiert)',
       rowTypes: {
         0: 'Wetter', 1: 'Uhrzeit', 2: 'Datum', 3: 'Wochentag', 4: 'Batterie',
         5: 'Nightscout BG', 6: 'Schritte', 7: 'Puls', 8: 'BG-Zeit (letzter)',
@@ -157,13 +162,12 @@
         '9': 'BG-Delta', '10': 'Regen naechste 3h'
       },
       presets: {
-        chalk: { label: 'Pebble Time Round', description: '4 Zeilen, starker Kontrast fuer das runde Display.' },
-        basalt: { label: 'Pebble Time / Steel', description: 'Volle Farbe mit hohem Kontrast auf 5 Zeilen.' },
-        diorite: { label: 'Pebble 2 (S/W)', description: 'Nur Schwarz/Weiss; Farben werden auf weisse Schrift mit Ghost-Grau abgebildet.' },
-        aplite: { label: 'Pebble Classic (S/W)', description: 'Graustufenpalette fuer gute Lesbarkeit.' },
-        time2: { label: 'Pebble Time 2', description: 'Grosses rechteckiges Display mit groesseren Ziffern und Abstaenden.' },
-        round2: { label: 'Pebble Round 2', description: 'Grosses rundes Display mit abgestimmtem 5-Zeilen-Layout.' },
-        contrast: { label: 'Farb-High-Contrast', description: 'Maximaler Kontrast fuer helle Umgebungen.' }
+        aplite:  { label: 'Pebble Classic / Steel', description: 'Nur S/W – alle Zeilen werden weiss angezeigt. 5 Zeilen.' },
+        basalt:  { label: 'Pebble Time / Steel',    description: 'Volle Pebble-Farbpalette auf 5 Zeilen.' },
+        chalk:   { label: 'Pebble Time Round',      description: 'Rundes Display, 4 Zeilen, volle Farbe.' },
+        diorite: { label: 'Pebble 2 / Core2Duo',    description: 'S/W-Display – nur Schwarz und Weiss. Farb-Reverse unterstützt. 5 Zeilen.' },
+        time2:   { label: 'Pebble Time 2',          description: 'Grosses rechteckiges Display, volle Farbe, 5 Zeilen.' },
+        round2:  { label: 'Pebble Round 2',         description: 'Grosses rundes Display, volle Farbe, 5 Zeilen.' }
       }
     }
   };
@@ -197,131 +201,115 @@
     { id: 10, name: 'Rain next 3h' }
   ];
 
+  // Row type IDs: 0=Weather 1=Time 2=Date 3=Weekday 4=Battery 5=BG 6=Steps 7=HR 8=BGTime 9=BGDelta 10=Rain
+  // Primary order: Weather(0) Date(2) Time(1) Steps(6) BG(5)
+  // Shake order:   Rain(10)  Battery(4) Weekday(3) BGTime(8) BGDelta(9)
+  // Color watches: ghost defaults to black (invisible on black bg by design, user sets it if wanted)
+  var COLOR_DEFAULTS = { low: '#FF0000', in: '#00FF00', high: '#FFFF00', ghost: '#000000' };
+  // B/W watches: ghost defaults to white (matches watch hardware behavior on black bg)
+  var BW_DEFAULTS    = { low: '#FFFFFF', in: '#FFFFFF', high: '#FFFFFF', ghost: '#FFFFFF' };
+
   var Presets = [
     {
-      id: 'chalk',
-      label: 'Pebble Time Round',
-      rows: 4,
-      bw: false,
-      pebble2: false,
-      description: '4 rows, strong contrast for the round display.',
+      id: 'aplite',
+      label: 'Pebble Classic / Steel',
+      rows: 5, bw: true, pebble2: false, round: false,
       defaults: {
         rows: [
+          { type: 0, color: '#FFFFFF' },
+          { type: 2, color: '#FFFFFF' },
           { type: 1, color: '#FFFFFF' },
-          { type: 5, color: '#00FF00' },
-          { type: 0, color: '#00FFFF' },
-          { type: 2, color: '#FFFF00' },
-          { type: 3, color: '#FFFFFF' }
+          { type: 6, color: '#FFFFFF' },
+          { type: 5, color: '#FFFFFF' }
         ],
-        colors: { low: '#FF0000', in: '#00FF00', high: '#FFFF00', ghost: '#555555' }
+        shakeRows: [10, 4, 3, 8, 9],
+        colors: BW_DEFAULTS,
+        bgColor: '#000000'
       }
     },
     {
       id: 'basalt',
       label: 'Pebble Time / Steel',
-      rows: 5,
-      bw: false,
-      pebble2: false,
-      description: 'Full color with high-contrast accents on 5 rows.',
+      rows: 5, bw: false, pebble2: false, round: false,
       defaults: {
         rows: [
+          { type: 0, color: '#00FFFF' },
+          { type: 2, color: '#AAAAAA' },
           { type: 1, color: '#FFFFFF' },
-          { type: 0, color: '#FF9900' },
-          { type: 5, color: '#00FF00' },
-          { type: 2, color: '#FFFF00' },
-          { type: 3, color: '#FFFFFF' }
+          { type: 6, color: '#FFAA00' },
+          { type: 5, color: '#00FF00' }
         ],
-        colors: { low: '#FF0000', in: '#00FF00', high: '#FFFF00', ghost: '#555555' }
+        shakeRows: [10, 4, 3, 8, 9],
+        colors: COLOR_DEFAULTS,
+        bgColor: '#000000'
+      }
+    },
+    {
+      id: 'chalk',
+      label: 'Pebble Time Round',
+      rows: 4, bw: false, pebble2: false, round: true,
+      defaults: {
+        rows: [
+          { type: 0, color: '#00FFFF' },
+          { type: 1, color: '#FFFFFF' },
+          { type: 6, color: '#FFAA00' },
+          { type: 5, color: '#00FF00' },
+          { type: 3, color: '#AAAAAA' }
+        ],
+        shakeRows: [10, 4, 3, 9, -1],
+        colors: COLOR_DEFAULTS,
+        bgColor: '#000000'
       }
     },
     {
       id: 'diorite',
-      label: 'Pebble 2 (B/W)',
-      rows: 5,
-      bw: true,
-      pebble2: true,
-      description: 'Black/white only; colors forced to white text with mid-gray ghost.',
+      label: 'Pebble 2 / Core2Duo',
+      rows: 5, bw: true, pebble2: true, round: false,
       defaults: {
         rows: [
-          { type: 1, color: '#FFFFFF' },
           { type: 0, color: '#FFFFFF' },
           { type: 2, color: '#FFFFFF' },
-          { type: 3, color: '#FFFFFF' },
-          { type: 5, color: '#FFFFFF' }
-        ],
-        colors: { low: '#FFFFFF', in: '#FFFFFF', high: '#FFFFFF', ghost: '#AAAAAA' }
-      }
-    },
-    {
-      id: 'aplite',
-      label: 'Pebble Classic (B/W)',
-      rows: 5,
-      bw: true,
-      pebble2: false,
-      description: 'Grayscale palette for strong readability.',
-      defaults: {
-        rows: [
-          { type: 0, color: '#FFFFFF' },
           { type: 1, color: '#FFFFFF' },
-          { type: 2, color: '#AAAAAA' },
-          { type: 3, color: '#AAAAAA' },
+          { type: 6, color: '#FFFFFF' },
           { type: 5, color: '#FFFFFF' }
         ],
-        colors: { low: '#FFFFFF', in: '#AAAAAA', high: '#555555', ghost: '#555555' }
+        shakeRows: [10, 4, 3, 8, 9],
+        colors: BW_DEFAULTS,
+        bgColor: '#000000'
       }
     },
     {
       id: 'time2',
       label: 'Pebble Time 2',
-      rows: 5,
-      bw: false,
-      pebble2: false,
-      description: 'Large rectangular display tuned for bigger digits and spacing.',
+      rows: 5, bw: false, pebble2: false, round: false,
       defaults: {
         rows: [
-          { type: 1, color: '#FFFFFF' },
-          { type: 5, color: '#00FF00' },
-          { type: 9, color: '#00FF00' },
           { type: 0, color: '#00FFFF' },
-          { type: 3, color: '#FFFFFF' }
+          { type: 2, color: '#AAAAAA' },
+          { type: 1, color: '#FFFFFF' },
+          { type: 6, color: '#FFAA00' },
+          { type: 5, color: '#00FF00' }
         ],
-        colors: { low: '#FF0000', in: '#00FF00', high: '#FFFF00', ghost: '#555555' }
+        shakeRows: [10, 4, 3, 8, 9],
+        colors: COLOR_DEFAULTS,
+        bgColor: '#000000'
       }
     },
     {
       id: 'round2',
       label: 'Pebble Round 2',
-      rows: 5,
-      bw: false,
-      pebble2: false,
-      description: 'Large round display with 5-row tuned layout.',
+      rows: 5, bw: false, pebble2: false, round: true,
       defaults: {
         rows: [
-          { type: 1, color: '#FFFFFF' },
-          { type: 5, color: '#00FF00' },
-          { type: 9, color: '#00FF00' },
           { type: 0, color: '#00FFFF' },
-          { type: 3, color: '#FFFFFF' }
-        ],
-        colors: { low: '#FF0000', in: '#00FF00', high: '#FFFF00', ghost: '#555555' }
-      }
-    },
-    {
-      id: 'contrast',
-      label: 'Farb-High-Contrast',
-      rows: 5,
-      bw: false,
-      pebble2: false,
-      description: 'Maximaler Kontrast für helle Umgebungen.',
-      defaults: {
-        rows: [
+          { type: 2, color: '#AAAAAA' },
           { type: 1, color: '#FFFFFF' },
-          { type: 0, color: '#FF9900' },
-          { type: 5, color: '#00FF00' },
-          { type: 2, color: '#FFFF00' },
-          { type: 3, color: '#FFFFFF' }
+          { type: 6, color: '#FFAA00' },
+          { type: 5, color: '#00FF00' }
         ],
-        colors: { low: '#FF0000', in: '#00FF00', high: '#FFFF00', ghost: '#AAAAAA' }
+        shakeRows: [10, 4, 3, 8, 9],
+        colors: COLOR_DEFAULTS,
+        bgColor: '#000000'
       }
     }
   ];
@@ -448,6 +436,9 @@
     setHTML('tipText', txt('tipText'));
     setText('paletteTitle', txt('paletteTitle'));
     setText('paletteIntro', txt('paletteIntro'));
+    setText('bgColorLabel', txt('bgColorLabel'));
+    setText('bgBlackLabel', txt('bgBlackLabel'));
+    setText('bgWhiteLabel', txt('bgWhiteLabel'));
     setText('reload', txt('reload'));
     setText('save', txt('save'));
     setText('cancel', txt('cancel'));
@@ -473,11 +464,7 @@
   }
 
   function getBWLevels() {
-    var platform = state.activePlatform || params.platform || '';
-    if (platform === 'aplite') {
-      return [0, 255];
-    }
-    return [0, 85, 170, 255];
+    return [0, 255];
   }
 
   function getColorOptions() {
@@ -501,9 +488,10 @@
   }
 
   function getGhostColorOptions() {
-    if (params.bw && (state.activePlatform || params.platform) === 'aplite') {
+    if (params.bw) {
+      // All B/W platforms: only black or white
       return [
-        { hex: '#555555', name: '#555555' },
+        { hex: '#000000', name: '#000000' },
         { hex: '#FFFFFF', name: '#FFFFFF' }
       ];
     }
@@ -539,12 +527,22 @@
   }
 
   function quantizeGhostToPebble(hex) {
-    var q = quantizeToPebble(hex);
-    if (params.bw && (state.activePlatform || params.platform) === 'aplite' && q === '#000000') {
-      // Aplite ghost should stay at darkest non-black shade.
-      return '#555555';
+    if (params.bw && params.pebble2) {
+      // Diorite: ghost can use 4 grayscale levels
+      var levels = [0, 85, 170, 255];
+      var h = (hex || '').toUpperCase();
+      if (/^#[0-9A-F]{6}$/.test(h)) {
+        var lum = (parseInt(h.substr(1,2),16)*3 + parseInt(h.substr(3,2),16)*6 + parseInt(h.substr(5,2),16)) / 10;
+        var best = levels[0];
+        var bestDist = Math.abs(lum - best);
+        for (var i = 1; i < levels.length; i++) {
+          var d = Math.abs(lum - levels[i]);
+          if (d < bestDist) { best = levels[i]; bestDist = d; }
+        }
+        return '#' + colorHex(best) + colorHex(best) + colorHex(best);
+      }
     }
-    return q;
+    return quantizeToPebble(hex);
   }
 
   function updateGhostDensityLabel() {
@@ -590,8 +588,8 @@
       case 6: return toSlots5(' 7420');
       case 7: return toSlots5('HR072');
       case 8: return toSlots5(' 1328');
-      case 9: return toSlots5(' +12 ');
-      case 10: return toSlots5('R 40 ');
+      case 9: return toSlots5(' +12');
+      case 10: return toSlots5('R 40%');
       default: return toSlots5('     ');
     }
   }
@@ -778,13 +776,19 @@
     var canvas = byId('ghostPreviewCanvas');
     if (!canvas || !canvas.getContext) return;
     var platform = (state.activePlatform || params.platform || '').toLowerCase();
-    var isRound = (platform === 'chalk' || platform === 'gabbro' || platform === 'round2');
-    var simW = params.sw || (isRound ? 180 : 144);
-    var simH = params.sh || (isRound ? 180 : 168);
+    var isRound = params.round || (platform === 'chalk' || platform === 'gabbro' || platform === 'round2');
+    var isGabbro = (platform === 'gabbro' || platform === 'round2');
+    // Gabbro (Pebble Round 2) has a 200×200 display; chalk (Time Round) is 180×180
+    var defaultRoundW = isGabbro ? 200 : 180;
+    var defaultRoundH = isGabbro ? 200 : 180;
+    var simW = params.sw || (isRound ? defaultRoundW : 144);
+    var simH = params.sh || (isRound ? defaultRoundH : 168);
     if (canvas.width !== simW) canvas.width = simW;
     if (canvas.height !== simH) canvas.height = simH;
-    canvas.style.width = Math.round(simW * 1.1) + 'px';
-    canvas.style.height = Math.round(simH * 1.1) + 'px';
+    // Scale the canvas display size to fit reasonably in the hero card
+    var scale = isGabbro ? 1.05 : (isRound ? 1.1 : 1.1);
+    canvas.style.width = Math.round(simW * scale) + 'px';
+    canvas.style.height = Math.round(simH * scale) + 'px';
     var ctx = canvas.getContext('2d');
     var ROWS_COUNT = params.rows || 5;
     var COLS = 5;
@@ -801,7 +805,8 @@
     var ghostHex = useFallback
       ? ((ghostFallEl && ghostFallEl.value) || '#555555')
       : ((ghostEl && ghostEl.value) || '#555555');
-    ctx.fillStyle = '#000000';
+    var bgHex = quantizeToPebble(getBgColor());
+    ctx.fillStyle = bgHex;
     ctx.fillRect(0, 0, W, H);
     if (isRound) {
       ctx.save();
@@ -809,7 +814,7 @@
       var r = Math.min(W, H) / 2 - 2;
       ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2);
       ctx.clip();
-      ctx.fillStyle = '#000000';
+      ctx.fillStyle = bgHex;
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
       ctx.save();
@@ -819,15 +824,27 @@
       ctx.clip();
     }
     var slotW = Math.floor(W / COLS);
-    var rowH = Math.floor(H / ROWS_COUNT);
+    // Mirror C code row geometry: gabbro uses 0.90 factor + gap 2; chalk uses 0.66 + gap 5
+    var rowH, rowYOffset, rowGap;
+    if (isRound) {
+      var factor = isGabbro ? 0.90 : 0.66;
+      rowGap    = isGabbro ? 2 : 5;
+      rowH      = Math.floor((H / ROWS_COUNT) * factor);
+      rowYOffset = Math.floor((H - rowH * ROWS_COUNT) / 2);
+    } else {
+      rowH      = Math.floor(H / ROWS_COUNT);
+      rowYOffset = 0;
+      rowGap    = 0;
+    }
     var leftPad = Math.floor((W - slotW * COLS) / 2);
     var rowsData = getPreviewRowsData(ROWS_COUNT);
+    var showGhost = (byId('showGhostGrid') || {}).checked !== false;
     ctx.fillStyle = ghostHex;
-    for (var row = 0; row < ROWS_COUNT; row++) {
+    if (showGhost) for (var row = 0; row < ROWS_COUNT; row++) {
       for (var col = 0; col < COLS; col++) {
         if (slotHiddenOnRound(row, col, ROWS_COUNT, isRound)) continue;
         var sx = leftPad + col * slotW;
-        var sy = row * rowH;
+        var sy = rowYOffset + row * rowH + row * rowGap;
         var mx = Math.max(1, Math.floor(slotW / 5));
         var my = Math.max(1, Math.floor(rowH / 7));
         var x0 = sx + mx;
@@ -859,7 +876,7 @@
         var ch = rd.slots[c3] || ' ';
         if (ch === ' ') continue;
         var sx2 = leftPad + c3 * slotW;
-        var sy2 = r3 * rowH;
+        var sy2 = rowYOffset + r3 * rowH + r3 * rowGap;
         drawFontGlyph(ctx, ch, sx2 + 1, sy2 + 1, slotW - 2, rowH - 2, rd.color || '#FFFFFF', 700);
       }
     }
@@ -900,17 +917,14 @@
   function applyPebble2Colors(payload) {
     if (!params.pebble2 || !payload) return payload;
     if (!payload.colors) payload.colors = {};
-    payload.colors.low = '#FFFFFF';
-    payload.colors.in = '#FFFFFF';
-    payload.colors.high = '#FFFFFF';
-    payload.colors.ghost = quantizeToPebble(payload.colors.ghost || '#555555');
-    if (payload.colors.ghost === '#000000' || payload.colors.ghost === '#555555') {
-      payload.colors.ghost = '#AAAAAA';
-    }
+    payload.colors.low   = quantizeToPebble(payload.colors.low   || '#FFFFFF');
+    payload.colors.in    = quantizeToPebble(payload.colors.in    || '#FFFFFF');
+    payload.colors.high  = quantizeToPebble(payload.colors.high  || '#FFFFFF');
+    payload.colors.ghost = quantizeGhostToPebble(payload.colors.ghost || '#555555');
     if (Array.isArray(payload.rows)) {
       payload.rows = payload.rows.map(function(row){
-        if (!row || typeof row !== 'object') return { type: 0, color: '#FFFFFF' };
-        row.color = '#FFFFFF';
+        if (!row || typeof row !== 'object') return { type: 0, color: '#000000' };
+        row.color = quantizeToPebble(row.color || '#FFFFFF');
         return row;
       });
     }
@@ -948,6 +962,8 @@
     });
     state.defaultRows = rows;
     state.defaultBgColors = colors;
+    state.defaultShakeRows = (defaults && defaults.shakeRows) ? defaults.shakeRows : [-1,-1,-1,-1,-1];
+    state.defaultBgColor = (defaults && defaults.bgColor) ? defaults.bgColor : '#000000';
   }
 
   function selectPreset(initial) {
@@ -972,20 +988,17 @@
     }
     if (!preset) {
       var platform = params.platform || '';
-      if (platform === 'chalk') preset = Presets[0];
-      else if (platform === 'aplite') preset = Presets[3];
-      else if (platform === 'diorite') preset = Presets[2];
-      else if (platform === 'emery') preset = Presets.find(function(p){ return p.id === 'time2'; }) || Presets[1];
-      else if (platform === 'gabbro') preset = Presets.find(function(p){ return p.id === 'round2'; }) || Presets[0];
-      else preset = Presets[1];
+      if (platform === 'emery') preset = Presets.find(function(p){ return p.id === 'time2'; });
+      else if (platform === 'gabbro') preset = Presets.find(function(p){ return p.id === 'round2'; });
+      else if (platform === 'flint') preset = Presets.find(function(p){ return p.id === 'basalt'; });
+      if (!preset) preset = Presets.find(function(p){ return p.id === 'basalt'; }) || Presets[0];
     }
     state.presetId = preset.id;
     state.activePlatform = preset.id;
-    if (profile === 'round2') params.rows = 5; // one more row than legacy round
-    else if (profile === 'time2') params.rows = 5;
-    else params.rows = preset.rows;
+    params.rows = preset.rows;
     params.bw = preset.bw;
     params.pebble2 = preset.pebble2;
+    params.round = preset.round || false;
     buildDefaults(preset);
   }
 
@@ -1005,6 +1018,119 @@
     wrap.style.display = sync.checked ? 'none' : '';
   }
 
+  function getBgColor() {
+    if (params.bw) {
+      var checked = document.querySelector('input[name="dispbg"]:checked');
+      return (checked && checked.value) || '#000000';
+    }
+    var useFallback = !supportsColorInput();
+    if (useFallback) {
+      var sel = byId('bgColorFallback');
+      return (sel && sel.value) || '#000000';
+    }
+    var inp = byId('bgColorPicker');
+    return (inp && inp.value) || '#000000';
+  }
+
+  function syncGhostToBg() {
+    // For B/W: ghost should be white on black bg, black on white bg
+    if (!params.bw) return;
+    var bgIsWhite = (document.querySelector('input[name="dispbg"]:checked') || {}).value === '#FFFFFF';
+    var ghostColor = bgIsWhite ? '#000000' : '#FFFFFF';
+    var ghostInp = byId('ghost');
+    var ghostSel = byId('ghostFallback');
+    if (ghostInp) { ghostInp.value = ghostColor; updateColorMetaForInput(ghostInp); }
+    if (ghostSel) ghostSel.value = ghostColor;
+  }
+
+  function swapBWRowColors() {
+    // When B/W background is toggled, invert all row colors between #000000 and #FFFFFF
+    if (!params.bw) return;
+    var form = byId('rows-form');
+    var colorInputs = form.querySelectorAll('input.row-color');
+    var colorFallbacks = form.querySelectorAll('select.row-color-fallback');
+    var useFallback = !supportsColorInput();
+    for (var i = 0; i < params.rows; i++) {
+      var cur = (useFallback ? (colorFallbacks[i] && colorFallbacks[i].value) : (colorInputs[i] && colorInputs[i].value) || '').toUpperCase();
+      var swapped = (cur === '#FFFFFF') ? '#000000' : '#FFFFFF';
+      if (colorInputs[i]) colorInputs[i].value = swapped;
+      if (colorFallbacks[i]) colorFallbacks[i].value = swapped;
+      updateColorMetaForInput(colorInputs[i]);
+    }
+    // Also swap BG threshold colors (low / in-range / high)
+    ['colLow', 'colIn', 'colHigh'].forEach(function(id) {
+      var inp = byId(id);
+      var sel = byId(id + 'Fallback');
+      var cur = ((sel && sel.value) || (inp && inp.value) || '#FFFFFF').toUpperCase();
+      var swapped = (cur === '#FFFFFF') ? '#000000' : '#FFFFFF';
+      if (inp) inp.value = swapped;
+      if (sel) sel.value = swapped;
+      updateColorMetaForInput(inp);
+    });
+    syncGhostToBg();
+    drawGhostPreview();
+  }
+
+  function updateBgColorUI() {
+    var bwOpts = byId('bgBwOptions');
+    var pickerWrap = byId('bgColorPickerWrap');
+    var bgSection = byId('bgColorSection');
+    if (params.bw) {
+      if (pickerWrap) pickerWrap.style.display = 'none';
+      if (bgSection) bgSection.style.display = '';
+      if (bwOpts) bwOpts.style.display = '';
+      // Reset bg radio to preset default, then sync ghost
+      var bgDefault = state.defaultBgColor || '#000000';
+      var bgRadio = document.querySelector('input[name="dispbg"][value="'+bgDefault+'"]');
+      if (bgRadio) bgRadio.checked = true;
+      syncGhostToBg();
+    } else {
+      if (bgSection) bgSection.style.display = '';
+      if (bwOpts) bwOpts.style.display = 'none';
+      if (pickerWrap) pickerWrap.style.display = '';
+      // Setup color picker for background
+      var useFallback = !supportsColorInput();
+      var sel = byId('bgColorFallback');
+      if (sel) {
+        sel.innerHTML = '';
+        getColorOptions().forEach(function(opt){
+          var o = document.createElement('option');
+          o.value = opt.hex; o.textContent = opt.name + ' (' + opt.hex + ')'; sel.appendChild(o);
+        });
+        sel.hidden = !useFallback;
+        sel.value = state.defaultBgColor || '#000000';
+      }
+      var inp = byId('bgColorPicker');
+      if (inp) {
+        inp.value = state.defaultBgColor || '#000000';
+        inp.hidden = useFallback;
+        inp.setAttribute('list', 'palette-list');
+        inp.onchange = function(){ inp.value = quantizeToPebble(inp.value); updateColorMetaForInput(inp); drawGhostPreview(); };
+        inp.oninput = function(){ updateColorMetaForInput(inp); };
+        updateColorMetaForInput(inp);
+      }
+    }
+  }
+
+  function updateDeviceNote() {
+    var note = byId('device-note');
+    if (!note) return;
+    if (params.bw) {
+      var msg = params.pebble2
+        ? (state.lang === 'de'
+            ? 'Pebble 2 ist S/W – nur Schwarz und Weiss. Mit "Weiss (invertiert)" werden alle Zeilenfarben getauscht.'
+            : 'Pebble 2 is B/W — black and white only. Selecting "White (inverted)" swaps all row colors.')
+        : (state.lang === 'de'
+            ? 'Classic/Steel ist S/W – nur Schwarz und Weiss werden übertragen. Bitte keine anderen Farben wählen.'
+            : 'Classic/Steel is B/W — only black and white are transferred. Avoid selecting other colors.');
+      note.textContent = msg;
+      note.classList.add('visible');
+    } else {
+      note.textContent = '';
+      note.classList.remove('visible');
+    }
+  }
+
   function renderPresetGrid() {
     var grid = document.getElementById('preset-grid');
     if (!grid) return;
@@ -1014,7 +1140,12 @@
       btn.className = 'preset-card' + (p.id === state.presetId ? ' active' : '');
       btn.setAttribute('type','button');
       btn.setAttribute('data-preset', p.id);
-        btn.innerHTML = '<div class="preset-label">'+p.label+'</div><div class="preset-desc">'+p.description+'</div><div class="preset-meta">'+(p.rows)+' '+txt('rowsMeta')+' · '+(p.bw?txt('bwMeta'):txt('colorMeta'))+'</div>';
+        var bwBadge = p.bw
+        ? '<span class="badge badge-bw">'+txt('bwMeta')+'</span>'
+        : '<span class="badge badge-color">'+txt('colorMeta')+'</span>';
+      var roundBadge = p.round ? '<span class="badge badge-round">Round</span>' : '';
+      var rowsBadge = '<span class="badge badge-rows">'+p.rows+' '+txt('rowsMeta')+'</span>';
+      btn.innerHTML = '<div class="preset-header"><span class="preset-label">'+p.label+'</span><span class="preset-badges">'+bwBadge+roundBadge+rowsBadge+'</span></div><div class="preset-desc">'+p.description+'</div>';
       btn.onclick = function(){
         selectPreset(p.id);
         buildRowsForm(true);
@@ -1022,6 +1153,8 @@
         renderPresetGrid();
         rebuildColorPickers();
         updateBGSectionVisibility();
+        updateBgColorUI();
+        updateDeviceNote();
         updateGhostDensityLabel();
         updatePreviewModeUI();
         drawGhostPreview();
@@ -1105,7 +1238,7 @@
       setLabelPrefix(labels[0], txt('row') + ' ' + (idx + 1) + ' ' + txt('secondValue'));
     });
     var selects = form.querySelectorAll('select.shake-row-type');
-    forEachNode(selects, function(sel){
+    forEachNode(selects, function(sel, idx){
       sel.innerHTML = '';
       ShakeRowTypes.forEach(function(rt){
         var o = document.createElement('option');
@@ -1113,7 +1246,11 @@
         o.textContent = rt.name;
         sel.appendChild(o);
       });
-      if (resetValues) sel.value = '-1';
+      if (resetValues) {
+        var def = (state.defaultShakeRows && state.defaultShakeRows[idx] !== undefined)
+          ? state.defaultShakeRows[idx] : -1;
+        sel.value = String(def);
+      }
     });
   }
 
@@ -1127,9 +1264,6 @@
     for (var i=0;i<params.rows;i++) {
       var type = parseInt(typeSelects[i].value,10);
       var color = useFallback ? colorFallbacks[i].value : colorInputs[i].value;
-      if (params.pebble2) {
-        color = '#FFFFFF';
-      }
       rows.push({ type:type, color:quantizeToPebble(color) });
     }
     return rows;
@@ -1140,8 +1274,7 @@
     var base = state.defaultRows;
     for (var i=0;i<5;i++) {
       var src = rows[i] || base[i] || { type: 0, color: '#FFFFFF' };
-      var color = params.pebble2 ? '#FFFFFF' : quantizeToPebble(src.color);
-      result.push({ type: src.type, color: color });
+      result.push({ type: src.type, color: quantizeToPebble(src.color) });
     }
     return result;
   }
@@ -1245,11 +1378,6 @@
     var colIn  = quantizeToPebble(useFallback ? byId('colInFallback').value  : byId('colIn').value);
     var colHigh= quantizeToPebble(useFallback ? byId('colHighFallback').value: byId('colHigh').value);
     var ghost  = quantizeGhostToPebble(useFallback ? byId('ghostFallback').value  : byId('ghost').value);
-    if (params.pebble2) {
-      colLow = '#FFFFFF';
-      colIn = '#FFFFFF';
-      colHigh = '#FFFFFF';
-    }
     var payload = {
       showLeadingZero: byId('leadingZero').checked,
       dateFormat: parseInt(document.querySelector('input[name="datefmt"]:checked').value,10),
@@ -1278,7 +1406,8 @@
       preset: state.presetId,
       vibeOnLow:        byId('vibeOnLow').checked,
       vibeOnHigh:       byId('vibeOnHigh').checked,
-      backlightOnShake: byId('backlightOnShake').checked
+      backlightOnShake: byId('backlightOnShake').checked,
+      bgColor: quantizeToPebble(getBgColor())
     };
     payload = applyPebble2Colors(payload);
     try { localStorage.setItem('supercgm_config', JSON.stringify(payload)); } catch(e) {}
@@ -1308,7 +1437,13 @@
       var saved = localStorage.getItem('supercgm_config');
       if (!saved) return;
       var cfg = JSON.parse(saved);
-      if (cfg && cfg.preset) selectPreset(cfg.preset);
+      if (cfg && cfg.preset) {
+        selectPreset(cfg.preset);
+        buildRowsForm(false);
+        buildShakeRowsForm(false);
+        renderPresetGrid();
+        rebuildColorPickers();
+      }
       cfg = applyPebble2Colors(cfg);
       byId('leadingZero').checked = !!cfg.showLeadingZero;
       document.querySelector('input[name="datefmt"][value="'+(cfg.dateFormat||0)+'"]').checked = true;
@@ -1349,6 +1484,17 @@
           if (shakeSelects[s]) shakeSelects[s].value = String(shakeRows[s]);
         }
       }
+      var savedBg = cfg.bgColor ? quantizeToPebble(cfg.bgColor) : '#000000';
+      if (params.bw) {
+        var bgRadio = document.querySelector('input[name="dispbg"][value="'+savedBg+'"]');
+        if (bgRadio) bgRadio.checked = true;
+        syncGhostToBg();
+      } else {
+        var bgInp = byId('bgColorPicker');
+        var bgSel = byId('bgColorFallback');
+        if (bgInp) { bgInp.value = savedBg; updateColorMetaForInput(bgInp); }
+        if (bgSel) bgSel.value = savedBg;
+      }
       if (byId('vibeOnLow'))        byId('vibeOnLow').checked        = !!cfg.vibeOnLow;
       if (byId('vibeOnHigh'))       byId('vibeOnHigh').checked       = !!cfg.vibeOnHigh;
       if (byId('backlightOnShake')) byId('backlightOnShake').checked = cfg.backlightOnShake !== false;
@@ -1361,9 +1507,7 @@
         if (typeSelects[i]) typeSelects[i].value = String(rows[i].type);
         if (colorInputs[i]) colorInputs[i].value = rows[i].color;
         if (colorFallbacks[i]) colorFallbacks[i].value = rows[i].color;
-      }
-      if (params.pebble2) {
-        try { localStorage.setItem('supercgm_config', JSON.stringify(cfg)); } catch(e) {}
+        updateColorMetaForInput(colorInputs[i]);
       }
     } catch(e) {}
   }
@@ -1378,7 +1522,9 @@
     buildShakeRowsForm(true);
     renderPresetGrid();
     rebuildColorPickers();
+    updateBgColorUI();
     restoreSaved();
+    updateDeviceNote();
     byId('rows-form').addEventListener('change', function(e){
       if (e.target && (e.target.classList.contains('row-type'))) updateBGSectionVisibility();
       drawGhostPreview();
@@ -1402,7 +1548,7 @@
     var bgSection = byId('bg-section');
     if (bgSection) {
       bgSection.addEventListener('change', function(e) {
-        if (e.target && (e.target.id === 'ghost' || e.target.id === 'ghostFallback')) drawGhostPreview();
+        if (e.target && (e.target.id === 'ghost' || e.target.id === 'ghostFallback' || e.target.id === 'showGhostGrid')) drawGhostPreview();
       });
       bgSection.addEventListener('input', function(e) {
         if (e.target && e.target.id === 'ghost') drawGhostPreview();
@@ -1429,6 +1575,8 @@
     if (byId('syncBgWithInterval')) {
       byId('syncBgWithInterval').addEventListener('change', updateBGFetchModeUI);
     }
+    var bwOpts = byId('bgBwOptions');
+    if (bwOpts) bwOpts.addEventListener('change', swapBWRowColors);
     var reloadBtn = byId('reload');
     if (reloadBtn) reloadBtn.onclick = reloadLatest;
     var langChooser = byId('langChooser');

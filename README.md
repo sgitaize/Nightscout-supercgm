@@ -1,8 +1,18 @@
+![Nightscout SuperCGM Banner](assets/banner.png)
+
 # supercgm-ns
 
 **Flexible Pebble watchface for CGM + weather with a fully customizable 5-slot grid per row.**  
 Designed for both color and black-and-white Pebble devices, including Round models.  
 About **90 % of the code was developed collaboratively with GitHub Copilot (Claude Sonnet)**, making it especially easy to extend and maintain.
+
+---
+
+## ☕ Support
+
+If this watchface saves you from checking your phone 50 times a day — consider buying me a Paulaner Spezi!
+
+[![Buy me a Paulaner Spezi](https://img.shields.io/badge/PayPal-Buy%20me%20a%20Paulaner%20Spezi%20🥤-009cde?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?hosted_button_id=LGAZB9PR4YV5L)
 
 ---
 
@@ -63,7 +73,7 @@ Configurable content:
 | Gabbro (Pebble Round 2) | Color, round | 5 |
 | Emery (Pebble Time 2) | Color | 5 |
 | Aplite (Pebble / Pebble Steel) | B/W | 5 |
-| Diorite (Pebble 2) | 4-level grayscale | 5 |
+| Diorite (Pebble 2) | B/W | 5 |
 
 ---
 
