@@ -29,6 +29,7 @@
       <h3 id="presetTitle">Watch presets</h3>
       <p id="presetIntro">Select your model. Switching presets updates row count, palette (B/W for Classic & Pebble 2), and default colors.</p>
       <div id="preset-grid" class="preset-grid"></div>
+      <div id="device-note" class="device-note"></div>
     </div>
   </header>
 
@@ -117,6 +118,18 @@
         <div id="weatherRefreshLabel">Weather refresh (min):</div>
         <input type="number" id="weatherInt" value="30" min="5" max="180" inputmode="numeric">
       </div>
+      <div class="inline-options" id="bgColorSection">
+        <div id="bgColorLabel">Background:</div>
+        <div id="bgBwOptions">
+          <label><input type="radio" name="dispbg" value="#000000" checked> <span id="bgBlackLabel">Black</span></label>
+          <label><input type="radio" name="dispbg" value="#FFFFFF"> <span id="bgWhiteLabel">White (inverted)</span></label>
+        </div>
+        <label id="bgColorPickerWrap" style="display:none">
+          <input type="color" id="bgColorPicker" value="#000000">
+          <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Black (#000000)</span></span>
+          <select id="bgColorFallback" hidden></select>
+        </label>
+      </div>
     </section>
 
     <section class="card" id="bg-section">
@@ -154,7 +167,7 @@
           <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Yellow (#FFFF00)</span></span>
           <select id="colHighFallback" hidden></select>
         </label>
-        <label><span id="ghostColorLabel">Ghost Color</span>
+        <label id="ghostColorWrap"><span id="ghostColorLabel">Ghost Color</span>
           <input type="color" id="ghost" value="#555555">
           <span class="color-meta"><span class="swatch-preview"></span><span class="color-name">Dark Gray (#555555)</span></span>
           <select id="ghostFallback" hidden></select>
@@ -174,7 +187,7 @@
         <button type="button" id="previewModeToggle" class="secondary">Show shake preview</button>
       </div>
       <div id="previewModeState" style="font-size:.8rem; color:var(--accent); margin:0 0 .35rem;">Main rows</div>
-	    <canvas id="ghostPreviewCanvas" width="144" height="168" style="display:block; border-radius:6px; image-rendering:pixelated; cursor:default;"></canvas>
+	    <canvas id="ghostPreviewCanvas" width="144" height="168" style="display:block; border-radius:8px; image-rendering:pixelated; cursor:default;"></canvas>
 	  </div>
     </section>
 

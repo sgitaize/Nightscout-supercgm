@@ -36,7 +36,8 @@ var keys = require('message_keys');
     shakeRows: [-1, -1, -1, -1, -1],
     vibeOnLow: false,
     vibeOnHigh: false,
-    backlightOnShake: true
+    backlightOnShake: true,
+    bgColor: '#000000'
   };
 
   function hexToInt(hex) {
@@ -63,7 +64,7 @@ var keys = require('message_keys');
   }
 
   function getBWPalette() {
-    return isPebble2 ? ['#000000', '#555555', '#AAAAAA', '#FFFFFF'] : ['#000000', '#FFFFFF'];
+    return ['#000000', '#FFFFFF'];
   }
 
   var isBWPlatform = false;
@@ -129,30 +130,13 @@ var keys = require('message_keys');
     if (!config.rows || !Array.isArray(config.rows)) config.rows = normalizeRows(config.rows);
     if (!isBWPlatform) return;
     config.rows = normalizeRows(config.rows).map(function(row){
-      var color = row.color;
-      if (isPebble2) {
-        color = '#FFFFFF';
-      }
-      return {
-        type: row.type,
-        color: isPebble2 ? '#FFFFFF' : quantize(color)
-      };
+      return { type: row.type, color: quantize(row.color) };
     });
     if (!config.colors) config.colors = {};
-    if (isPebble2) {
-      config.colors.low = '#FFFFFF';
-      config.colors.in = '#FFFFFF';
-      config.colors.high = '#FFFFFF';
-      config.colors.ghost = quantize(config.colors.ghost || '#555555');
-      if (config.colors.ghost === '#000000' || config.colors.ghost === '#555555') {
-        config.colors.ghost = '#AAAAAA';
-      }
-    } else {
-      config.colors.low = quantize(config.colors.low || '#FFFFFF');
-      config.colors.in = quantize(config.colors.in || '#AAAAAA');
-      config.colors.high = quantize(config.colors.high || '#555555');
-      config.colors.ghost = quantize(config.colors.ghost || '#AAAAAA');
-    }
+    config.colors.low   = quantize(config.colors.low   || '#FFFFFF');
+    config.colors.in    = quantize(config.colors.in    || '#FFFFFF');
+    config.colors.high  = quantize(config.colors.high  || '#FFFFFF');
+    config.colors.ghost = quantize(config.colors.ghost || '#555555');
   }
 
   function sendConfig() {
@@ -172,13 +156,19 @@ var keys = require('message_keys');
   rowsDict['ROW' + (i+1) + '_COLOR'] = hexToInt(quantize(config.rows[i].color));
     }
     // 2) Colors and thresholds
+    var bgColorHex = config.bgColor || '#000000';
+    if (isBWPlatform && !isPebble2) {
+      // Aplite: only black or white allowed as background
+      bgColorHex = (bgColorHex.toUpperCase() === '#FFFFFF') ? '#FFFFFF' : '#000000';
+    }
     var colorsDict = {
   'COLOR_LOW': hexToInt(quantize(config.colors.low)),
   'COLOR_HIGH': hexToInt(quantize(config.colors.high)),
   'COLOR_IN_RANGE': hexToInt(quantize(config.colors.in)),
   'GHOST_COLOR': hexToInt(quantize(config.colors.ghost)),
       'BG_THRESH_LOW': config.low,
-      'BG_THRESH_HIGH': config.high
+      'BG_THRESH_HIGH': config.high,
+      'DISPLAY_BG_COLOR': hexToInt(quantize(bgColorHex))
     };
     // 3) Basics
     var basicDict = {
@@ -509,6 +499,7 @@ var keys = require('message_keys');
           if (!cfg.ghostDensity) cfg.ghostDensity = 3;
           if (cfg.syncBgWithInterval === undefined) cfg.syncBgWithInterval = true;
           if (!cfg.bgManualIntervalMin) cfg.bgManualIntervalMin = 5;
+          if (!cfg.bgColor) cfg.bgColor = '#000000';
         }
         // Basic sanity: ensure rows exist
         if (cfg && Array.isArray(cfg.rows)) {

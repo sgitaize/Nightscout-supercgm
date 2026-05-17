@@ -83,6 +83,7 @@ static time_t s_last_vibe_high_ts = 0;
 static GColor s_col_low, s_col_high, s_col_in;
 static uint32_t s_row_color_hex[ROWS];
 static uint32_t s_col_low_hex, s_col_high_hex, s_col_in_hex, s_ghost_hex;
+static uint32_t s_bg_color_hex = 0x000000;
 static int s_hr_bpm = -1;
 static time_t s_hr_timestamp = 0;
 static int s_weather_rain3h = -1;
@@ -93,38 +94,26 @@ static GColor ColorFromHex(uint32_t hex) {
   uint8_t g = (hex >> 8) & 0xFF;
   uint8_t b = (hex) & 0xFF;
   return GColorFromRGB(r, g, b);
-#elif defined(PBL_PLATFORM_DIORITE)
-  // Pebble 2 supports 4-level grayscale: quantize to the closest light gray while avoiding pure black
+#else
+  // Aplite + Diorite: B/W only — quantize to nearest black or white by luminance
   uint8_t r = (hex >> 16) & 0xFF;
   uint8_t g = (hex >> 8) & 0xFF;
   uint8_t b = (hex) & 0xFF;
   uint8_t lum = (uint8_t)((r * 3 + g * 6 + b) / 10);
-  // Snap to 0, 85, 170, 255 but keep at least 85 so text stays visible on black background
-  uint8_t level = (lum + 21) / 64; // 0..4-ish
-  if (level < 1) level = 1;
-  if (level > 3) level = 3;
-  uint8_t grey = (uint8_t)(level * 85);
-  return GColorFromRGB(grey, grey, grey);
-#else
-  // Aplite (Pebble Classic) is strictly B/W – always return white for foreground elements
-  return GColorWhite;
+  return (lum >= 128) ? GColorWhite : GColorBlack;
 #endif
 }
 
 static GColor GhostColorFromHex(uint32_t hex) {
-#if defined(PBL_PLATFORM_DIORITE)
+#if defined(PBL_COLOR)
+  return ColorFromHex(hex);
+#else
+  // B/W only
   uint8_t r = (hex >> 16) & 0xFF;
   uint8_t g = (hex >> 8) & 0xFF;
   uint8_t b = (hex) & 0xFF;
   uint8_t lum = (uint8_t)((r * 3 + g * 6 + b) / 10);
-  uint8_t level = (uint8_t)((lum + 42) / 85);
-  if (level > 3) level = 3;
-  uint8_t grey = (uint8_t)(level * 85);
-  return GColorFromRGB(grey, grey, grey);
-#elif defined(PBL_PLATFORM_APLITE)
-  return GColorWhite;
-#else
-  return ColorFromHex(hex);
+  return (lum >= 128) ? GColorWhite : GColorBlack;
 #endif
 }
 
@@ -232,6 +221,7 @@ typedef struct {
   int      vibe_on_low;
   int      vibe_on_high;
   int      backlight_on_shake;
+  uint32_t bg_color_hex;
 } ConfigCache;
 
 static void save_config_cache(void);
@@ -582,10 +572,6 @@ static void draw_all_rows(void) {
 
   for (int i = 0; i < ROWS; i++) {
     GColor color = s_row_colors[i];
-#if defined(PBL_PLATFORM_APLITE)
-    // Force white digits on Pebble Classic so text is visible on black background
-    color = GColorWhite;
-#endif
     // Build a 5-char buffer for this row
     char slots[6] = {' ', ' ', ' ', ' ', ' ', 0};
 
@@ -799,7 +785,7 @@ static void draw_all_rows(void) {
           } else if (s_bg_delta < 0) {
             snprintf(d, sizeof(d), "%d", s_bg_delta);
           } else {
-            d[0] = 0; // delta == 0: show nothing
+            snprintf(d, sizeof(d), "+-0");
           }
         } else {
           snprintf(d, sizeof(d), "--");
@@ -1026,6 +1012,14 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     s_backlight_on_shake = t->value->int32 != 0;
     config_changed = true;
   }
+  if ((t = dict_find(iter, MESSAGE_KEY_DISPLAY_BG_COLOR))) {
+    s_bg_color_hex = (uint32_t)t->value->int32;
+    uint8_t bgr = (s_bg_color_hex >> 16) & 0xFF;
+    uint8_t bgg = (s_bg_color_hex >>  8) & 0xFF;
+    uint8_t bgb =  s_bg_color_hex        & 0xFF;
+    window_set_background_color(s_main_window, GColorFromRGB(bgr, bgg, bgb));
+    config_changed = true;
+  }
 
   draw_all_rows();
 
@@ -1232,7 +1226,12 @@ static void init(void) {
 #endif
 
   s_main_window = window_create();
-  window_set_background_color(s_main_window, GColorBlack);
+  {
+    uint8_t bgr = (s_bg_color_hex >> 16) & 0xFF;
+    uint8_t bgg = (s_bg_color_hex >>  8) & 0xFF;
+    uint8_t bgb =  s_bg_color_hex        & 0xFF;
+    window_set_background_color(s_main_window, GColorFromRGB(bgr, bgg, bgb));
+  }
   window_set_window_handlers(s_main_window, (WindowHandlers) {
     .load = main_window_load,
     .appear = main_window_appear,
@@ -1301,7 +1300,7 @@ int main(void) {
 
 static void save_config_cache(void) {
   ConfigCache cc;
-  cc.version = 4;
+  cc.version = 5;
   for (int i=0;i<ROWS;i++) { cc.row_types[i] = s_row_types[i]; cc.row_color_hex[i] = s_row_color_hex[i]; }
   cc.ghost_hex = s_ghost_hex;
   cc.show_leading_zero = s_show_leading_zero ? 1 : 0;
@@ -1320,6 +1319,7 @@ static void save_config_cache(void) {
   cc.vibe_on_low        = s_vibe_on_low        ? 1 : 0;
   cc.vibe_on_high       = s_vibe_on_high       ? 1 : 0;
   cc.backlight_on_shake = s_backlight_on_shake ? 1 : 0;
+  cc.bg_color_hex       = s_bg_color_hex;
   persist_write_data(PERSIST_CONFIG_KEY, &cc, sizeof(cc));
 }
 
@@ -1327,7 +1327,7 @@ static void load_config_cache(void) {
   if (!persist_exists(PERSIST_CONFIG_KEY)) { init_defaults(); return; }
   ConfigCache cc;
   if (persist_read_data(PERSIST_CONFIG_KEY, &cc, sizeof(cc)) != (int)sizeof(cc)) { init_defaults(); return; }
-  if (cc.version != 3 && cc.version != 4) { init_defaults(); return; }
+  if (cc.version < 3 || cc.version > 5) { init_defaults(); return; }
   for (int i=0;i<ROWS;i++) { s_row_types[i] = cc.row_types[i]; s_row_color_hex[i] = cc.row_color_hex[i]; s_row_colors[i] = ColorFromHex(s_row_color_hex[i]); }
   s_ghost_hex = cc.ghost_hex; s_ghost_color = GhostColorFromHex(s_ghost_hex);
 #if defined(PBL_COLOR)
@@ -1338,9 +1338,6 @@ static void load_config_cache(void) {
     uint8_t b =  s_ghost_hex        & 0xFF;
     if (r < 0x55 && g < 0x55 && b < 0x55) { s_ghost_hex = 0x555555; s_ghost_color = GhostColorFromHex(s_ghost_hex); }
   }
-#endif
-#if defined(PBL_PLATFORM_APLITE)
-  s_ghost_color = GColorWhite;
 #endif
   s_show_leading_zero = cc.show_leading_zero != 0;
   s_date_format = cc.date_format;
@@ -1359,20 +1356,7 @@ static void load_config_cache(void) {
   s_vibe_on_low        = (cc.version >= 3) ? (cc.vibe_on_low        != 0) : false;
   s_vibe_on_high       = (cc.version >= 3) ? (cc.vibe_on_high       != 0) : false;
   s_backlight_on_shake = (cc.version >= 3) ? (cc.backlight_on_shake != 0) : true;
-#if defined(PBL_PLATFORM_DIORITE)
-  for (int i=0; i<ROWS; i++) {
-    s_row_color_hex[i] = 0xFFFFFF;
-    s_row_colors[i] = ColorFromHex(s_row_color_hex[i]);
-  }
-  s_ghost_hex = 0x777777;
-  s_ghost_color = GhostColorFromHex(s_ghost_hex);
-  s_col_low_hex = 0xFFFFFF;
-  s_col_high_hex = 0xFFFFFF;
-  s_col_in_hex = 0xFFFFFF;
-  s_col_low = ColorFromHex(s_col_low_hex);
-  s_col_high = ColorFromHex(s_col_high_hex);
-  s_col_in = ColorFromHex(s_col_in_hex);
-#endif
+  s_bg_color_hex = (cc.version >= 5) ? cc.bg_color_hex : 0x000000;
 }
 
 // Draw compact trend arrows without relying on glyphs; use simple triangles/lines
