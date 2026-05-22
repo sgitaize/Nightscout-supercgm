@@ -26,6 +26,7 @@
       bgTitle: 'Nightscout',
       bgIntro: 'Only shown when at least one row is set to Nightscout BG. Set URL, timeout, refresh, thresholds, and colors. Sync mode uses status.now as server time and bgs.datetime as reading time.',
       bgUrlLabel: 'Nightscout URL',
+      authTokenLabel: 'Auth Token (optional)',
       bgTimeoutLabel: 'Timeout (min)',
       bgRefreshLabel: 'BG interval (min)',
       syncBgWithIntervalLabel: 'Sync with BG interval (timestamp + 30s)',
@@ -69,12 +70,12 @@
       bgWhiteLabel: 'White (inverted)',
       rowTypes: {
         0: 'Weather', 1: 'Time', 2: 'Date', 3: 'Weekday', 4: 'Battery',
-        5: 'Nightscout BG', 6: 'Steps', 7: 'Heart Rate', 8: 'BG Time (last)',
+        5: 'Nightscout BG', 6: 'Steps', 7: 'Heart Rate', 8: 'BG Age (min)',
         9: 'BG Delta', 10: 'Rain next 3h'
       },
       shakeTypes: {
         '-1': 'Off', '0': 'Weather', '1': 'Time', '2': 'Date', '3': 'Weekday', '4': 'Battery',
-        '5': 'Nightscout BG', '6': 'Steps', '7': 'Heart Rate', '8': 'BG Time (last)',
+        '5': 'Nightscout BG', '6': 'Steps', '7': 'Heart Rate', '8': 'BG Age (min)',
         '9': 'BG Delta', '10': 'Rain next 3h'
       },
       presets: {
@@ -110,6 +111,7 @@
       bgTitle: 'Nightscout',
       bgIntro: 'Wird nur angezeigt, wenn mindestens eine Zeile Nightscout BG nutzt. URL, Timeout, Intervall, Grenzwerte und Farben setzen. Sync nutzt status.now als Serverzeit und bgs.datetime als Messzeit.',
       bgUrlLabel: 'Nightscout-URL',
+      authTokenLabel: 'Auth-Token (optional)',
       bgTimeoutLabel: 'Timeout (Min)',
       bgRefreshLabel: 'BG-Intervall (Min)',
       syncBgWithIntervalLabel: 'Mit BG-Intervall synchronisieren (Timestamp + 30s)',
@@ -153,12 +155,12 @@
       bgWhiteLabel: 'Weiss (invertiert)',
       rowTypes: {
         0: 'Wetter', 1: 'Uhrzeit', 2: 'Datum', 3: 'Wochentag', 4: 'Batterie',
-        5: 'Nightscout BG', 6: 'Schritte', 7: 'Puls', 8: 'BG-Zeit (letzter)',
+        5: 'Nightscout BG', 6: 'Schritte', 7: 'Puls', 8: 'BG-Alter (min)',
         9: 'BG-Delta', 10: 'Regen naechste 3h'
       },
       shakeTypes: {
         '-1': 'Aus', '0': 'Wetter', '1': 'Uhrzeit', '2': 'Datum', '3': 'Wochentag', '4': 'Batterie',
-        '5': 'Nightscout BG', '6': 'Schritte', '7': 'Puls', '8': 'BG-Zeit (letzter)',
+        '5': 'Nightscout BG', '6': 'Schritte', '7': 'Puls', '8': 'BG-Alter (min)',
         '9': 'BG-Delta', '10': 'Regen naechste 3h'
       },
       presets: {
@@ -338,8 +340,66 @@
     defaultRows: [],
     defaultBgColors: {},
     lang: 'en',
-    previewMode: 'main'
+    previewMode: 'main',
+    thresholdUnit: 'mgdl'  // tracks what unit the threshold inputs currently show
   };
+
+  // ── Threshold unit helpers ──────────────────────────────────────────────
+  function mgdlToMmol(mgdl) {
+    return Math.round(parseFloat(mgdl) * 10 / 18) / 10;
+  }
+  function mmolToMgdl(mmol) {
+    return Math.round(parseFloat(mmol) * 18);
+  }
+  function setThresholdInputAttr(unit) {
+    var lowEl = byId('low'), highEl = byId('high');
+    if (!lowEl || !highEl) return;
+    if (unit === 'mmol') {
+      lowEl.step  = '0.1'; lowEl.min  = '1';  lowEl.max  = '33';
+      highEl.step = '0.1'; highEl.min = '1';  highEl.max = '33';
+    } else {
+      lowEl.step  = '1';   lowEl.min  = '40'; lowEl.max  = '400';
+      highEl.step = '1';   highEl.min = '40'; highEl.max = '400';
+    }
+    updateThresholdUnitLabels(unit);
+  }
+  // Takes stored mg/dL values, displays them in the currently active unit.
+  function setThresholdValues(mgdlLow, mgdlHigh) {
+    var unit = document.querySelector('input[name="bgunit"]:checked');
+    var u = unit ? unit.value : 'mgdl';
+    var lowEl = byId('low'), highEl = byId('high');
+    if (!lowEl || !highEl) return;
+    if (u === 'mmol') {
+      lowEl.value  = mgdlToMmol(mgdlLow).toFixed(1);
+      highEl.value = mgdlToMmol(mgdlHigh).toFixed(1);
+    } else {
+      lowEl.value  = mgdlLow;
+      highEl.value = mgdlHigh;
+    }
+    state.thresholdUnit = u;
+    setThresholdInputAttr(u);
+  }
+  function updateThresholdUnitLabels(unit) {
+    var unitStr = unit === 'mmol' ? ' (mmol/L)' : ' (mg/dL)';
+    var lo = byId('lowLabel'), hi = byId('highLabel');
+    if (lo) lo.textContent = txt('lowLabel') + unitStr;
+    if (hi) hi.textContent = txt('highLabel') + unitStr;
+  }
+  // Called when bgunit radio changes; converts current threshold values to the new unit.
+  function onBgUnitChange() {
+    var newUnit = (document.querySelector('input[name="bgunit"]:checked') || {}).value || 'mgdl';
+    if (newUnit === state.thresholdUnit) return;
+    var lowEl = byId('low'), highEl = byId('high');
+    if (!lowEl || !highEl) return;
+    var curLow = parseFloat(lowEl.value) || 0;
+    var curHigh = parseFloat(highEl.value) || 0;
+    // Convert from old display unit to mg/dL, then re-display in new unit
+    var mgdlLow  = state.thresholdUnit === 'mmol' ? mmolToMgdl(curLow)  : Math.round(curLow);
+    var mgdlHigh = state.thresholdUnit === 'mmol' ? mmolToMgdl(curHigh) : Math.round(curHigh);
+    state.thresholdUnit = newUnit;
+    setThresholdValues(mgdlLow, mgdlHigh);
+  }
+  // ── End threshold helpers ───────────────────────────────────────────────
 
   function getLang() {
     var q = (params.lang || '').toLowerCase();
@@ -410,13 +470,13 @@
     setText('bgTitle', txt('bgTitle'));
     setText('bgIntro', txt('bgIntro'));
     setText('bgUrlLabel', txt('bgUrlLabel'));
+    setText('authTokenLabel', txt('authTokenLabel'));
     setText('bgTimeoutLabel', txt('bgTimeoutLabel'));
     setText('bgRefreshLabel', txt('bgRefreshLabel'));
     setText('syncBgWithIntervalLabel', txt('syncBgWithIntervalLabel'));
     setText('bgManualLabel', txt('bgManualLabel'));
     setText('cgmUnitLabel', txt('cgmUnitLabel'));
-    setText('lowLabel', txt('lowLabel'));
-    setText('highLabel', txt('highLabel'));
+    updateThresholdUnitLabels(state.thresholdUnit);
     setText('colorLowLabel', txt('colorLowLabel'));
     setText('colorInLabel', txt('colorInLabel'));
     setText('colorHighLabel', txt('colorHighLabel'));
@@ -587,7 +647,7 @@
       case 5: return toSlots5(' 118 ');
       case 6: return toSlots5(' 7420');
       case 7: return toSlots5('HR072');
-      case 8: return toSlots5(' 1328');
+      case 8: return toSlots5(' 5MIN');
       case 9: return toSlots5(' +12');
       case 10: return toSlots5('R 40%');
       default: return toSlots5('     ');
@@ -1388,10 +1448,11 @@
       syncBgWithInterval: byId('syncBgWithInterval').checked,
       bgManualIntervalMin: parseInt(byId('bgManualInt').value,10),
       bgUrl: byId('bgUrl').value.trim(),
+      authToken: (byId('authToken').value || '').trim() || null,
       bgTimeoutMin: parseInt(byId('bgTimeout').value,10),
       bgUnit: document.querySelector('input[name="bgunit"]:checked').value,
-      low: parseInt(byId('low').value,10),
-      high: parseInt(byId('high').value,10),
+      low:  parseFloat(byId('low').value)  || 0,
+      high: parseFloat(byId('high').value) || 0,
       colors: {
         low: colLow,
         in: colIn,
@@ -1451,14 +1512,26 @@
       document.querySelector('input[name="tempunit"][value="'+(cfg.tempUnit||'C')+'"]').checked = true;
       byId('weatherInt').value = cfg.weatherIntervalMin || 30;
       byId('bgUrl').value = cfg.bgUrl || '';
+      if (byId('authToken')) byId('authToken').value = cfg.authToken || '';
       byId('bgTimeout').value = cfg.bgTimeoutMin || 20;
       byId('bgFetchInt').value = cfg.bgFetchIntervalMin || 5;
       byId('syncBgWithInterval').checked = cfg.syncBgWithInterval !== false;
       byId('bgManualInt').value = cfg.bgManualIntervalMin || 5;
       updateBGFetchModeUI();
       document.querySelector('input[name="bgunit"][value="'+(cfg.bgUnit||'mgdl')+'"]').checked = true;
-      byId('low').value = cfg.low || 80;
-      byId('high').value = cfg.high || 180;
+      var savedLow = cfg.low || 80, savedHigh = cfg.high || 180;
+      var savedUnit = cfg.bgUnit || 'mgdl';
+      // Migrate old configs that stored mg/dL values while unit was mmol
+      if (savedUnit === 'mmol' && savedLow > 30) {
+        savedLow  = mgdlToMmol(savedLow);
+        savedHigh = mgdlToMmol(savedHigh);
+      }
+      // setThresholdValues takes mg/dL and converts; but values are already in savedUnit here.
+      // Directly set inputs and attributes for the saved unit.
+      state.thresholdUnit = savedUnit;
+      byId('low').value   = savedUnit === 'mmol' ? parseFloat(savedLow).toFixed(1)  : savedLow;
+      byId('high').value  = savedUnit === 'mmol' ? parseFloat(savedHigh).toFixed(1) : savedHigh;
+      setThresholdInputAttr(savedUnit);
       var applyColorValue = function(id, value) {
         var input = byId(id);
         var sel = byId(id + 'Fallback');
@@ -1524,6 +1597,8 @@
     rebuildColorPickers();
     updateBgColorUI();
     restoreSaved();
+    // Ensure threshold inputs have correct attributes after restore
+    setThresholdInputAttr(state.thresholdUnit);
     updateDeviceNote();
     byId('rows-form').addEventListener('change', function(e){
       if (e.target && (e.target.classList.contains('row-type'))) updateBGSectionVisibility();
@@ -1577,6 +1652,10 @@
     }
     var bwOpts = byId('bgBwOptions');
     if (bwOpts) bwOpts.addEventListener('change', swapBWRowColors);
+    // Convert threshold inputs when BG unit is changed
+    document.querySelectorAll('input[name="bgunit"]').forEach(function(r){
+      r.addEventListener('change', onBgUnitChange);
+    });
     var reloadBtn = byId('reload');
     if (reloadBtn) reloadBtn.onclick = reloadLatest;
     var langChooser = byId('langChooser');

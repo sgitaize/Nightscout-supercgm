@@ -1,6 +1,6 @@
 {
   "name": "Nightscout Supercgm",
-  "version": "2.1",
+  "version": "2.2",
   "description": "Watchface with 5 flexible rows: time, date, weekday, battery, weather, Nightscout BG, steps.",
   "author": "sgitaize",
   "license": "MIT",

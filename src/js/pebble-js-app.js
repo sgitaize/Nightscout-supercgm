@@ -6,6 +6,7 @@ var keys = require('message_keys');
   var config = {
     weatherApi: 'https://api.open-meteo.com/v1/forecast',
     bgUrl: null,
+    authToken: null,
     bgTimeoutMin: 20,
     low: 80,
     high: 180,
@@ -166,8 +167,9 @@ var keys = require('message_keys');
   'COLOR_HIGH': hexToInt(quantize(config.colors.high)),
   'COLOR_IN_RANGE': hexToInt(quantize(config.colors.in)),
   'GHOST_COLOR': hexToInt(quantize(config.colors.ghost)),
-      'BG_THRESH_LOW': config.low,
-      'BG_THRESH_HIGH': config.high,
+      // Thresholds are stored in the configured unit; send ×10 for mmol so C compares in same unit as sgv
+      'BG_THRESH_LOW':  config.bgUnit === 'mmol' ? Math.round((parseFloat(config.low)  || 0) * 10) : Math.round(parseFloat(config.low)  || 80),
+      'BG_THRESH_HIGH': config.bgUnit === 'mmol' ? Math.round((parseFloat(config.high) || 0) * 10) : Math.round(parseFloat(config.high) || 180),
       'DISPLAY_BG_COLOR': hexToInt(quantize(bgColorHex))
     };
     // 3) Basics
@@ -400,7 +402,12 @@ var keys = require('message_keys');
       planNextBGFetch(null);
       return;
     }
-    var url = config.bgUrl.replace(/\/$/, '') + '/pebble';
+    var baseUrl = config.bgUrl.replace(/\/$/, '');
+    // If bgUrl already contains /pebble (e.g. with ?token= workaround), use as-is
+    var url = (baseUrl.indexOf('/pebble') >= 0) ? baseUrl : baseUrl + '/pebble';
+    if (config.authToken && url.indexOf('token=') < 0) {
+      url += (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(config.authToken);
+    }
     var req = new XMLHttpRequest();
     req.onload = function() {
       try {
@@ -411,25 +418,48 @@ var keys = require('message_keys');
         var json = JSON.parse(this.responseText);
         // responses can vary; handle Nightscout /pebble (json.bgs[0]) and others
         var sgv = null, ts = null, trend = null, bgDelta = null, serverNow = null;
+
+        // Parse SGV: auto-detect if NS sends mmol (float < 40) or mg/dL (integer >= 40).
+        // When bgUnit is mmol, always send mmol×10 so C can display "X.Y" without conversion.
+        function parseSgv(raw) {
+          var f = parseFloat(raw);
+          if (!isFinite(f) || f <= 0) return NaN;
+          if (config.bgUnit === 'mmol') {
+            return f < 40 ? Math.round(f * 10) : Math.round(f * 10 / 18);
+          } else {
+            return f < 40 ? Math.round(f * 18) : Math.round(f);
+          }
+        }
+        function parseDelta(raw) {
+          var f = parseFloat(raw);
+          if (!isFinite(f)) return NaN;
+          if (config.bgUnit === 'mmol') {
+            return Math.abs(f) < 30 ? Math.round(f * 10) : Math.round(f * 10 / 18);
+          } else {
+            return Math.abs(f) < 30 && String(raw).indexOf('.') >= 0
+              ? Math.round(f * 18) : Math.round(f);
+          }
+        }
+
         if (json && Array.isArray(json.bgs) && json.bgs.length > 0) {
           var b = json.bgs[0];
-          sgv = parseInt(b.sgv || b.glucose || b.value, 10);
+          sgv = parseSgv(b.sgv || b.glucose || b.value);
           ts = parseInt((b.datetime || b.date || b.mills || b.timestamp || 0), 10);
           trend = b.direction || b.trend || null;
-          bgDelta = parseInt(b.bgdelta, 10);
+          bgDelta = parseDelta(b.bgdelta);
           if (json.status && Array.isArray(json.status) && json.status[0]) {
             serverNow = parseInt(json.status[0].now || 0, 10);
           }
         } else if (Array.isArray(json) && json.length > 0) {
-          sgv = parseInt(json[0].sgv || json[0].glucose || json[0].value, 10);
+          sgv = parseSgv(json[0].sgv || json[0].glucose || json[0].value);
           ts = parseInt((json[0].datetime || json[0].date || json[0].mills || json[0].timestamp || 0), 10);
           trend = json[0].direction || json[0].trend || null;
-          bgDelta = parseInt(json[0].bgdelta, 10);
+          bgDelta = parseDelta(json[0].bgdelta);
         } else if (json && (json.sgv || json.value || json.glucose)) {
-          sgv = parseInt(json.sgv || json.value || json.glucose, 10);
+          sgv = parseSgv(json.sgv || json.value || json.glucose);
           ts = parseInt(json.datetime || json.date || json.mills || json.timestamp || 0, 10);
           trend = json.direction || json.trend || null;
-          bgDelta = parseInt(json.bgdelta, 10);
+          bgDelta = parseDelta(json.bgdelta);
         }
         if (ts && ts > 1000000000000) { // ms -> s
           ts = Math.floor(ts / 1000);
@@ -437,7 +467,7 @@ var keys = require('message_keys');
         if (serverNow && serverNow > 1000000000000) {
           serverNow = Math.floor(serverNow / 1000);
         }
-        if (isFinite(sgv)) {
+        if (isFinite(sgv) && sgv > 0) {
           var nowSec = (serverNow && isFinite(serverNow) && serverNow > 0) ? serverNow : Math.floor(Date.now() / 1000);
           var bgTs = ts || nowSec;
           var ageSec = nowSec - bgTs;
@@ -460,7 +490,7 @@ var keys = require('message_keys');
             'BG_TREND': arrow,
             'BG_UNIT': (config.bgUnit === 'mmol' ? 1 : 0)
           };
-          extras['BG_DELTA'] = isFinite(bgDelta) ? bgDelta : -9999;
+          extras['BG_DELTA'] = (isFinite(bgDelta) && bgDelta !== null) ? bgDelta : -9999;
           sendStatus(status, extras);
           planNextBGFetch(bgTs, nowSec);
         } else {
@@ -500,6 +530,12 @@ var keys = require('message_keys');
           if (cfg.syncBgWithInterval === undefined) cfg.syncBgWithInterval = true;
           if (!cfg.bgManualIntervalMin) cfg.bgManualIntervalMin = 5;
           if (!cfg.bgColor) cfg.bgColor = '#000000';
+          if (cfg.authToken === undefined) cfg.authToken = null;
+          // Migrate old configs: if unit is mmol but thresholds look like mg/dL (>30), convert
+          if (cfg.bgUnit === 'mmol' && cfg.low > 30) {
+            cfg.low  = Math.round(cfg.low  * 10 / 18) / 10;
+            cfg.high = Math.round(cfg.high * 10 / 18) / 10;
+          }
         }
         // Basic sanity: ensure rows exist
         if (cfg && Array.isArray(cfg.rows)) {
@@ -592,6 +628,7 @@ var keys = require('message_keys');
       if (!config.ghostDensity) config.ghostDensity = 3;
       if (config.syncBgWithInterval === undefined) config.syncBgWithInterval = true;
       if (!config.bgManualIntervalMin) config.bgManualIntervalMin = 5;
+      if (config.authToken === undefined) config.authToken = null;
       // Persist to pkjs storage so it survives app restarts
       try { localStorage.setItem('supercgm_config', JSON.stringify(config)); } catch(_e) {}
       sendConfig();
