@@ -326,6 +326,7 @@ static void check_bg_alerts(void) {
   if (s_bg_status != BG_STATUS_OK || s_bg_sgv < 0) return;
   time_t now = time(NULL);
   const int cooldown = 600; // 10-minute vibe cooldown
+  // Thresholds and sgv are in the same unit (both ×10 for mmol, both mg/dL for mg/dL)
   if (s_vibe_on_low && s_bg_sgv < s_bg_low) {
     if ((now - s_last_vibe_low_ts) >= cooldown) {
       s_last_vibe_low_ts = now;
@@ -362,7 +363,7 @@ static void layout_rows(void) {
   int16_t gap = 5; // extra spacing between rows on round
 #endif
 #else
-  int16_t y_offset = 0;
+  int16_t y_offset = (bounds.size.h - row_height * ROWS) / 2;
   int16_t gap = 0;
 #endif
   int16_t slot_w = bounds.size.w / 5;
@@ -529,8 +530,8 @@ static void draw_all_rows(void) {
       snprintf(s_bg, sizeof(s_bg), "OLDBG");
     } else {
       if (s_bg_unit_mmol) {
-        int mmol10 = (s_bg_sgv * 10) / 18;
-        snprintf(s_bg, sizeof(s_bg), "%d.%d", mmol10 / 10, mmol10 % 10);
+        // PKJS sends mmol×10 (e.g. 5.9 mmol → 59), display as "X.Y"
+        snprintf(s_bg, sizeof(s_bg), "%d.%d", s_bg_sgv / 10, s_bg_sgv % 10);
       } else {
         snprintf(s_bg, sizeof(s_bg), "%d", s_bg_sgv);
       }
@@ -617,9 +618,12 @@ static void draw_all_rows(void) {
           if (stale_sec < 300) stale_sec = 300;
           if ((int)(now - s_bg_timestamp) > stale_sec) {
             color = GColorLightGray;
-          } else if (s_bg_sgv < s_bg_low) color = s_col_low;
-          else if (s_bg_sgv > s_bg_high) color = s_col_high;
-          else color = s_col_in;
+          } else {
+            // Thresholds and sgv are in the same unit (mmol×10 or mg/dL)
+            if (s_bg_sgv < s_bg_low) color = s_col_low;
+            else if (s_bg_sgv > s_bg_high) color = s_col_high;
+            else color = s_col_in;
+          }
         } else if (s_bg_status == BG_STATUS_NO_CONN || s_bg_status == BG_STATUS_NO_DATA
                    || s_bg_status == BG_STATUS_OLD) {
 #if defined(PBL_COLOR)
@@ -649,7 +653,7 @@ static void draw_all_rows(void) {
           // position overlay near the right
           GRect bounds = get_layout_bounds();
           int16_t row_h = bounds.size.h / ROWS;
-          int16_t y_off = 0;
+          int16_t y_off = (bounds.size.h - row_h * ROWS) / 2; // center rows vertically
           int16_t gap = 0;
 #if defined(PBL_ROUND)
           // Mirror layout_rows() exactly so overlay stays aligned with digit layers
@@ -746,7 +750,7 @@ static void draw_all_rows(void) {
     int16_t slot_w = bounds.size.w / 5;
     int16_t left_pad = (bounds.size.w - slot_w * 5) / 2;
     int deg_slot = 3; // slot before/with unit
-    int16_t y_base = bounds.origin.y + i * row_h;
+    int16_t y_base = bounds.origin.y + (bounds.size.h - row_h * ROWS) / 2 + i * row_h;
     GRect frame = GRect(bounds.origin.x + left_pad + deg_slot * slot_w, y_base, slot_w, row_h);
     s_weather_deg_color = color;
     layer_set_frame(s_weather_deg_layer, frame);
@@ -764,28 +768,35 @@ static void draw_all_rows(void) {
         break;
       case ROW_TYPE_BG_TIMESTAMP: {
         if (s_bg_timestamp > 0) {
-          struct tm *lt = localtime(&s_bg_timestamp);
+          int age_min = (int)((now - s_bg_timestamp) / 60);
+          if (age_min < 0) age_min = 0;
+          if (age_min > 99) age_min = 99;
           char ts[6];
-          snprintf(ts, sizeof(ts), "%02d:%02d", lt->tm_hour, lt->tm_min);
+          if (age_min < 10) {
+            snprintf(ts, sizeof(ts), "%d MIN", age_min); // "5 MIN"
+          } else {
+            snprintf(ts, sizeof(ts), "%dMIN", age_min);  // "10MIN"
+          }
           for (int k = 0; k < 5; k++) slots[k] = ts[k];
         } else {
-          slots[0] = '-';
-          slots[1] = '-';
-          slots[2] = ':';
-          slots[3] = '-';
-          slots[4] = '-';
+          slots[0] = '-'; slots[1] = '-';
+          slots[2] = 'M'; slots[3] = 'I'; slots[4] = 'N';
         }
         break;
       }
       case ROW_TYPE_BG_DELTA: {
         char d[8];
         if (s_bg_status == BG_STATUS_OK && s_bg_delta != -9999) {
-          if (s_bg_delta > 0) {
-            snprintf(d, sizeof(d), "+%d", s_bg_delta);
-          } else if (s_bg_delta < 0) {
-            snprintf(d, sizeof(d), "%d", s_bg_delta);
+          if (s_bg_unit_mmol) {
+            // delta is mmol×10 (e.g. 0.2 mmol → 2), display as "+X.Y"
+            int dabs = s_bg_delta < 0 ? -s_bg_delta : s_bg_delta;
+            if (s_bg_delta > 0)      snprintf(d, sizeof(d), "+%d.%d", dabs/10, dabs%10);
+            else if (s_bg_delta < 0) snprintf(d, sizeof(d), "-%d.%d", dabs/10, dabs%10);
+            else                     snprintf(d, sizeof(d), "+-0");
           } else {
-            snprintf(d, sizeof(d), "+-0");
+            if (s_bg_delta > 0)      snprintf(d, sizeof(d), "+%d", s_bg_delta);
+            else if (s_bg_delta < 0) snprintf(d, sizeof(d), "%d", s_bg_delta);
+            else                     snprintf(d, sizeof(d), "+-0");
           }
         } else {
           snprintf(d, sizeof(d), "--");

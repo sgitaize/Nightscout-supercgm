@@ -16,7 +16,7 @@
           <option value="de">Deutsch</option>
         </select>
       </div>
-      <p class="eyebrow" id="heroEyebrow">supercgm-ns v2.0</p>
+      <p class="eyebrow" id="heroEyebrow">supercgm-ns v2.2</p>
       <h1 id="heroTitle">Pick your watch and configure in one go</h1>
       <p class="lede" id="heroLede">Choose your Pebble model to get the right row count (4 for legacy Round, 5 for rectangular and Round 2) and a contrast-safe palette. All colors are quantized so parameters transfer reliably to every Pebble generation.</p>
       <div class="hero-tags">
@@ -138,6 +138,7 @@
         <p id="bgIntro">Only shown when at least one row is set to Nightscout BG. Set URL, timeout, refresh, thresholds, and colors.</p>
       </div>
       <label><span id="bgUrlLabel">Nightscout URL</span> <input type="url" id="bgUrl" placeholder="https://myns.example.com"></label>
+      <label><span id="authTokenLabel">Auth Token (optional)</span> <input type="text" id="authToken" placeholder="yourToken123" autocomplete="off" spellcheck="false"></label>
       <label><span id="bgTimeoutLabel">Timeout (min)</span> <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
       <label><span id="bgRefreshLabel">BG interval (min)</span> <input type="number" id="bgFetchInt" value="5" min="1" max="180" inputmode="numeric"></label>
       <label><input type="checkbox" id="syncBgWithInterval" checked> <span id="syncBgWithIntervalLabel">Sync with BG interval (timestamp + 30s)</span></label>
