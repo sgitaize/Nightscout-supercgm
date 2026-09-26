@@ -1,6 +1,7 @@
 # Ignore all dotfiles except .gitignore
 .*
 !.gitignore
+!.github/
 
 # FTP credentials – never commit!
 .ftpconfig
