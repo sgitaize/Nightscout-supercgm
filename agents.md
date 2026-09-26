@@ -189,6 +189,14 @@ Weather:
 Nightscout BG:
 
 - Supports sync scheduling from reading timestamp + 30s or manual interval mode
+- v2.3 learned upload lag (battery): PKJS learns how late readings reach
+  Nightscout (localStorage `supercgm_upload_lag`) and fetches at
+  reading + interval + max(30 s, lag + 10 s); the +30 s time is probed once
+  per reading while the learned time is >= 1 min later; overdue > 2 min polls
+  every 60 s instead of 15 s. Slow uploader (~3 min): ~150 -> ~28 requests/h,
+  fast uploader unchanged. Same logic as casiocgm v2.3.
+- HTTP errors (non-2xx) now reschedule the next fetch (before 2.3 polling
+  stopped for good after one error)
 - Status states: OK, NO_DATA, NO_CONN, OLD
 - Trend symbol drawn with dedicated overlay layer
 - Threshold colors selected from config

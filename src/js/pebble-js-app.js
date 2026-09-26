@@ -359,6 +359,45 @@ var keys = require('message_keys');
     scheduleBG._timer = setTimeout(fetchBG, ms);
   }
 
+  // Learned upload lag (battery, same logic as casiocgm v2.3): many
+  // uploaders/bridges put a reading into Nightscout minutes after it was
+  // measured; fetching at the fixed +30 s then means ~10 extra 15 s polls per
+  // reading. The lag is learned and the fetch planned at
+  // reading + interval + max(30 s, lag + 10 s):
+  //   - a new reading appeared between the previous and this fetch:
+  //     previous fetch <= 20 s ago -> exact sample (now - reading time):
+  //     increases taken at once, decreases smoothed (EMA 50 %);
+  //     previous fetch longer ago but already later than the learned lag ->
+  //     raise to the middle of that window; otherwise only an upper bound ->
+  //     lag = min(lag, sample)
+  //   - if the learned fetch is >= 1 min after the +30 s time, that time is
+  //     probed once per reading; a hit there means the uploader is fast again
+  //   - overdue: poll every 15 s, after 2 min overdue (sensor gap/warm-up)
+  //     only every 60 s
+  var LAG_KEY = 'supercgm_upload_lag';
+  var lagSec = 0;
+  try { lagSec = Math.max(0, parseInt(localStorage.getItem(LAG_KEY), 10) || 0); } catch (e) {}
+  var lastSeenTsSec = 0, prevFetchNow = 0, prevMissed = false;
+
+  function learnUploadLag(bgTsSec, serverNowSec, sensorSec) {
+    if (lastSeenTsSec && bgTsSec > lastSeenTsSec) {
+      var sample = Math.max(0, serverNowSec - bgTsSec);            // upper bound
+      var lower  = prevMissed ? prevFetchNow - bgTsSec : -1;       // lower bound
+      if (prevMissed && serverNowSec - prevFetchNow <= 20) {
+        lagSec = sample > lagSec ? sample : Math.round((lagSec + sample) / 2);
+      } else if (lower > lagSec) {
+        lagSec = Math.round((lower + sample) / 2);
+      } else {
+        lagSec = Math.min(lagSec, sample);
+      }
+      lagSec = Math.min(lagSec, sensorSec * 2);
+      try { localStorage.setItem(LAG_KEY, String(lagSec)); } catch (e) {}
+    }
+    prevMissed = (bgTsSec === lastSeenTsSec);
+    lastSeenTsSec = bgTsSec;
+    prevFetchNow = serverNowSec;
+  }
+
   function planNextBGFetch(lastBgTsSec, serverNowSec) {
     var anyBG = config.rows && config.rows.some(function(r){ return r.type === 5; });
     if (!anyBG || !config.bgUrl) {
@@ -379,10 +418,16 @@ var keys = require('message_keys');
 
     var sensorIntervalSec = Math.max(1, parseInt(config.bgFetchIntervalMin || 5, 10)) * 60;
     if (lastBgTsSec && isFinite(lastBgTsSec) && lastBgTsSec > 0) {
-      var targetMs = ((lastBgTsSec + sensorIntervalSec) * 1000) + 30000; // issue #14: timestamp + 30s
-      var refNowMs = (serverNowSec && isFinite(serverNowSec) && serverNowSec > 0) ? (serverNowSec * 1000) : Date.now();
-      var delay = targetMs - refNowMs;
-      if (delay < 15000) delay = 15000;
+      var nowSec = (serverNowSec && isFinite(serverNowSec) && serverNowSec > 0) ? serverNowSec : Math.floor(Date.now() / 1000);
+      learnUploadLag(lastBgTsSec, nowSec, sensorIntervalSec);
+      var offsetSec = Math.max(30, lagSec + 10);                     // issue #14: timestamp + 30s
+      var dueSec = lastBgTsSec + sensorIntervalSec + offsetSec;
+      var probeSec = lastBgTsSec + sensorIntervalSec + 30;
+      var delay = (dueSec - nowSec) * 1000;
+      if (dueSec - probeSec >= 60 && probeSec > nowSec + 5) {
+        delay = (probeSec - nowSec) * 1000;                          // probe fast time
+      }
+      if (delay < 15000) delay = (nowSec - dueSec > 120) ? 60000 : 15000;
       if (delay > manualMs * 3) delay = manualMs;
       scheduleNextBG(delay);
       return;
@@ -413,6 +458,7 @@ var keys = require('message_keys');
       try {
         if (this.status && (this.status < 200 || this.status >= 300)) {
           sendStatus(BG_STATUS.NO_CONN);
+          planNextBGFetch(null);   // keep polling (previously stopped for good)
           return;
         }
         var json = JSON.parse(this.responseText);
