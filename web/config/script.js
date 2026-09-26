@@ -332,6 +332,16 @@
     } catch(e) { return { rows:5, bw:false, pebble2:false, platform:'', lang:'', profile:'', sw:0, sh:0 }; }
   }
   var params = getParams();
+
+  // The watch passes its current config in the URL fragment (#config=…), so
+  // the page shows the real settings on any host (localStorage is per domain)
+  // and the Nightscout token never reaches the web server. The emulator adds
+  // ?return_to=… (possibly after the fragment) → parse from the whole href.
+  function hrefParam(name) {
+    var m = new RegExp('[?&#]' + name + '=([^&#?]*)').exec(window.location.href);
+    try { return m ? decodeURIComponent(m[1]) : null; } catch (e) { return null; }
+  }
+  function returnUrl() { return hrefParam('return_to') || 'pebblejs://close#'; }
   if (params.pebble2) params.bw = true;
 
   var state = {
@@ -1472,7 +1482,7 @@
     };
     payload = applyPebble2Colors(payload);
     try { localStorage.setItem('supercgm_config', JSON.stringify(payload)); } catch(e) {}
-    document.location = 'pebblejs://close#' + encodeURIComponent(JSON.stringify(payload));
+    document.location = returnUrl() + encodeURIComponent(JSON.stringify(payload));
   }
 
   function reloadLatest() {
@@ -1491,11 +1501,11 @@
     }
   }
 
-  function cancel(){ document.location = 'pebblejs://close'; }
+  function cancel(){ document.location = hrefParam('return_to') ? returnUrl() + 'CANCELLED' : 'pebblejs://close'; }
 
   function restoreSaved() {
     try {
-      var saved = localStorage.getItem('supercgm_config');
+      var saved = hrefParam('config') || localStorage.getItem('supercgm_config');
       if (!saved) return;
       var cfg = JSON.parse(saved);
       if (cfg && cfg.preset) {

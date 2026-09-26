@@ -224,7 +224,11 @@ Install all emulators in background sequence:
 
 Deploy config site:
 
-- ./deploy-config.sh
+- push web/** to main → GitHub Actions (.github/workflows/pages.yml) publishes
+  web/ to https://sgitaize.github.io/Nightscout-supercgm/config/index.html
+- PKJS appends the stored config as `#config=<json>` (fragment); script.js
+  restores from it first, then localStorage (per-origin!). `return_to` (emulator)
+  is parsed from the whole href.
 
 ## 13) Common pitfalls and fast diagnosis
 
@@ -236,7 +240,7 @@ Problem: new key ignored at runtime
 Problem: config site changes not visible
 
 - Cause: old deployed files or cache
-- Fix: run deploy-config.sh and reload with cache-busting
+- Fix: check the Pages workflow run (gh run list) and reload with cache-busting
 
 Problem: ghost not visible on emulator
 
@@ -259,7 +263,7 @@ Before editing rendering/config behavior:
 3. Confirm PKJS send/restore paths in src/js/pebble-js-app.js.
 4. Confirm required message keys exist in package.json appKeys.
 5. Build and verify no new compile errors.
-6. If config web changed, deploy via ./deploy-config.sh.
+6. If config web changed, push to main (Pages workflow deploys web/).
 
 After editing:
 

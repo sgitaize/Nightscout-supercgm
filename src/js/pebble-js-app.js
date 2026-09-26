@@ -652,7 +652,7 @@ var keys = require('message_keys');
 
     var lang = 'en';
 
-    var url = 'https://supercgm-config.aize-it.de/config20/index.html' +
+    var url = 'https://sgitaize.github.io/Nightscout-supercgm/config/index.html' +
       '?platform=' + encodeURIComponent(platform) +
       '&bw=' + (isBW ? '1' : '0') +
       '&rows=' + rows +
@@ -661,11 +661,17 @@ var keys = require('message_keys');
       '&sw=' + screenW +
       '&sh=' + screenH +
       '&lang=' + lang;
+    // current config in the fragment: shown on the (GitHub Pages) config page
+    // regardless of its origin; fragments are not sent to the web server
+    try {
+      var stored = localStorage.getItem('supercgm_config');
+      if (stored) url += '#config=' + encodeURIComponent(stored);
+    } catch (e) {}
     Pebble.openURL(url);
   });
 
   Pebble.addEventListener('webviewclosed', function(e) {
-    if (!e || !e.response) { return; }
+    if (!e || !e.response || e.response === 'CANCELLED') { return; }
     try {
       config = JSON.parse(decodeURIComponent(e.response));
       config.rows = normalizeRows(config.rows);

@@ -84,7 +84,7 @@ Configurable content:
 ## ⚙️ Configuration
 
 Open the watchface settings from the Pebble/Rebble phone app.  
-The settings page (`/config20`) adapts to the platform (row count, B/W palette, ghost visibility, and preview layout).  
+The settings page (GitHub Pages: https://sgitaize.github.io/Nightscout-supercgm/config/) adapts to the platform (row count, B/W palette, ghost visibility, and preview layout).  
 Default language is **English** with an in-page **English/German language chooser**.
 Presets include legacy models plus **Time 2** and **Round 2**.
 
@@ -124,10 +124,11 @@ pebble install --emulator diorite           # Test on B/W emulator
 ```
 
 **Deploy config website**
-```bash
-./deploy-config.sh    # Uploads web/config/ to FTP /config20
-```
-Requires `lftp` (`brew install lftp`). FTP credentials are stored in `.ftpconfig` (gitignored).
+
+Pushing changes under `web/` to `main` publishes them automatically to GitHub Pages
+(workflow `.github/workflows/pages.yml`): https://sgitaize.github.io/Nightscout-supercgm/config/index.html.
+The watch passes its current settings in the URL fragment (`#config=…`), so the page shows them on any host.
+Versions before 2.4 still open the old page at supercgm-config.aize-it.de/config20.
 
 Development tips:
 - Phone code: `src/js/pebble-js-app.js`
