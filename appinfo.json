@@ -3,7 +3,7 @@
   "shortName": "supercgm-ns",
   "longName": "Nightscout Supercgm",
   "companyName": "sgitaize",
-  "versionLabel": "2.4",
+  "versionLabel": "2.5",
   "sdkVersion": "3",
   "watchapp": {
     "watchface": true

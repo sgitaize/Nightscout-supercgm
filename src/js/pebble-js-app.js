@@ -370,8 +370,11 @@ var keys = require('message_keys');
   //     previous fetch longer ago but already later than the learned lag ->
   //     raise to the middle of that window; otherwise only an upper bound ->
   //     lag = min(lag, sample)
-  //   - if the learned fetch is >= 1 min after the +30 s time, that time is
-  //     probed once per reading; a hit there means the uploader is fast again
+  //   - probe once per reading at half the learned lag (min. +30 s): a hit
+  //     halves the lag, so a lag learned in a slow phase drops back within a
+  //     few readings (fixed +30 s probe let it get stuck high -> values
+  //     shown minutes late / stale for > 10 min)
+  //   - lag capped at one sensor interval
   //   - overdue: poll every 15 s, after 2 min overdue (sensor gap/warm-up)
   //     only every 60 s
   var LAG_KEY = 'supercgm_upload_lag';
@@ -390,7 +393,7 @@ var keys = require('message_keys');
       } else {
         lagSec = Math.min(lagSec, sample);
       }
-      lagSec = Math.min(lagSec, sensorSec * 2);
+      lagSec = Math.min(lagSec, sensorSec);
       try { localStorage.setItem(LAG_KEY, String(lagSec)); } catch (e) {}
     }
     prevMissed = (bgTsSec === lastSeenTsSec);
@@ -422,10 +425,10 @@ var keys = require('message_keys');
       learnUploadLag(lastBgTsSec, nowSec, sensorIntervalSec);
       var offsetSec = Math.max(30, lagSec + 10);                     // issue #14: timestamp + 30s
       var dueSec = lastBgTsSec + sensorIntervalSec + offsetSec;
-      var probeSec = lastBgTsSec + sensorIntervalSec + 30;
+      var probeSec = lastBgTsSec + sensorIntervalSec + Math.max(30, Math.round(lagSec / 2));
       var delay = (dueSec - nowSec) * 1000;
-      if (dueSec - probeSec >= 60 && probeSec > nowSec + 5) {
-        delay = (probeSec - nowSec) * 1000;                          // probe fast time
+      if (dueSec - probeSec >= 30 && probeSec > nowSec + 5) {
+        delay = (probeSec - nowSec) * 1000;                          // probe at half the lag
       }
       if (delay < 15000) delay = (nowSec - dueSec > 120) ? 60000 : 15000;
       if (delay > manualMs * 3) delay = manualMs;
