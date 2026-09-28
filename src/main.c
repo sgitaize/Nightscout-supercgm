@@ -119,6 +119,7 @@ static GColor GhostColorFromHex(uint32_t hex) {
 
 static void update_time(void);
 static void request_weather(void);
+static void bg_watchdog(void);
 static void draw_all_rows(void);
 static void trend_update_proc(Layer *layer, GContext *ctx);
 static void weather_deg_update_proc(Layer *layer, GContext *ctx);
@@ -852,6 +853,7 @@ static void draw_all_rows(void) {
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   if (units_changed & MINUTE_UNIT) {
     update_time();
+    bg_watchdog();
   }
 }
 
@@ -1041,6 +1043,27 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {}
 static void outbox_failed_callback(DictionaryIterator *iter, AppMessageResult reason, void *context) {}
 static void outbox_sent_callback(DictionaryIterator *iter, void *context) {}
+
+// Watchdog: the phone's fetch chain is a single JS setTimeout; when the
+// phone suspends PebbleKit JS (or an XHR never returns) it silently stops
+// and the value only came back after reloading the watchface. If the
+// reading is older than interval + 3 min, ask the phone (an AppMessage
+// wakes the JS), at most every 3 min.
+static time_t s_last_bg_req_ts = 0;
+
+static void bg_watchdog(void) {
+  time_t now = time(NULL);
+  int interval_sec = s_bg_fetch_interval_min * 60;
+  if (interval_sec < 60) interval_sec = 60;
+  if (now - s_bg_timestamp < interval_sec + 180 || now - s_last_bg_req_ts < 180) return;
+  if (!connection_service_peek_pebble_app_connection()) return;
+  s_last_bg_req_ts = now;
+  DictionaryIterator *iter;
+  if (app_message_outbox_begin(&iter) == APP_MSG_OK) {
+    dict_write_int32(iter, MESSAGE_KEY_REQUEST_BG, 1);
+    app_message_outbox_send();
+  }
+}
 
 static void request_weather(void) {
   DictionaryIterator *iter;

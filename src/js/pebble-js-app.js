@@ -457,7 +457,24 @@ var keys = require('message_keys');
       url += (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(config.authToken);
     }
     var req = new XMLHttpRequest();
+    // Guard: on some phones an XHR never calls onload/onerror/ontimeout;
+    // the fetch chain (one setTimeout) would then stop for good.
+    var done = false;
+    var guard = setTimeout(function() {
+      if (done) return;
+      done = true;
+      console.log('BG fetch hung, retrying');
+      try { req.abort(); } catch (e) {}
+      planNextBGFetch(null);
+    }, 25000);
+    function finish() {
+      if (done) return false;
+      done = true;
+      clearTimeout(guard);
+      return true;
+    }
     req.onload = function() {
+      if (!finish()) return;
       try {
         if (this.status && (this.status < 200 || this.status >= 300)) {
           sendStatus(BG_STATUS.NO_CONN);
@@ -552,10 +569,12 @@ var keys = require('message_keys');
       }
     };
     req.onerror = function() {
+      if (!finish()) return;
       sendStatus(BG_STATUS.NO_CONN);
       planNextBGFetch(null);
     };
     req.ontimeout = function() {
+      if (!finish()) return;
       sendStatus(BG_STATUS.NO_CONN);
       planNextBGFetch(null);
     };
