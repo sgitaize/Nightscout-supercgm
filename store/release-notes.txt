@@ -1,0 +1,1 @@
+New data source iPump-mini: reads a MiniMed 780G directly on your iPhone (no internet, no Nightscout needed) – fetches exactly when the iPhone app is awake, optional Nightscout fallback (small cloud), NOAPP hint. The last value now stays visible after the watchface restarts. Nightscout works as before (default). Shared CGM logic: github.com/sgitaize/pebble-cgm.

@@ -26,6 +26,11 @@
       bgTitle: 'Nightscout',
       bgIntro: 'Only shown when at least one row is set to Nightscout BG. Set URL, timeout, refresh, thresholds, and colors. Sync mode uses status.now as server time and bgs.datetime as reading time.',
       bgUrlLabel: 'Nightscout URL',
+      bgSourceLabel: 'Data source',
+      bgSourceIpump: 'iPump-mini (local, this iPhone)',
+      ompUrlLabel: 'iPump-mini server',
+      ompFallbackLabel: 'Nightscout as fallback',
+      ompHint: 'iPump-mini reads a MiniMed 780G directly on the iPhone, no internet needed. The fallback is only used when the app is unreachable (at most every 5 min).',
       authTokenLabel: 'Auth Token (optional)',
       bgTimeoutLabel: 'Timeout (min)',
       bgRefreshLabel: 'BG interval (min)',
@@ -111,6 +116,11 @@
       bgTitle: 'Nightscout',
       bgIntro: 'Wird nur angezeigt, wenn mindestens eine Zeile Nightscout BG nutzt. URL, Timeout, Intervall, Grenzwerte und Farben setzen. Sync nutzt status.now als Serverzeit und bgs.datetime als Messzeit.',
       bgUrlLabel: 'Nightscout-URL',
+      bgSourceLabel: 'Datenquelle',
+      bgSourceIpump: 'iPump-mini (lokal, dieses iPhone)',
+      ompUrlLabel: 'iPump-mini-Server',
+      ompFallbackLabel: 'Nightscout als Fallback',
+      ompHint: 'iPump-mini liest eine MiniMed 780G direkt auf dem iPhone aus, ohne Internet. Der Fallback wird nur genutzt, wenn die App nicht erreichbar ist (höchstens alle 5 min).',
       authTokenLabel: 'Auth-Token (optional)',
       bgTimeoutLabel: 'Timeout (Min)',
       bgRefreshLabel: 'BG-Intervall (Min)',
@@ -480,6 +490,11 @@
     setText('bgTitle', txt('bgTitle'));
     setText('bgIntro', txt('bgIntro'));
     setText('bgUrlLabel', txt('bgUrlLabel'));
+    setText('bgSourceLabel', txt('bgSourceLabel'));
+    setText('bgSourceIpump', txt('bgSourceIpump'));
+    setText('ompUrlLabel', txt('ompUrlLabel'));
+    setText('ompFallbackLabel', txt('ompFallbackLabel'));
+    setText('ompHint', txt('ompHint'));
     setText('authTokenLabel', txt('authTokenLabel'));
     setText('bgTimeoutLabel', txt('bgTimeoutLabel'));
     setText('bgRefreshLabel', txt('bgRefreshLabel'));
@@ -1458,6 +1473,9 @@
       syncBgWithInterval: byId('syncBgWithInterval').checked,
       bgManualIntervalMin: parseInt(byId('bgManualInt').value,10),
       bgUrl: byId('bgUrl').value.trim(),
+      bgSource: byId('bgSource').value,
+      ompUrl: byId('ompUrl').value.trim() || 'http://127.0.0.1:17580',
+      ompFallback: byId('ompFallback').checked,
       authToken: (byId('authToken').value || '').trim() || null,
       bgTimeoutMin: parseInt(byId('bgTimeout').value,10),
       bgUnit: document.querySelector('input[name="bgunit"]:checked').value,
@@ -1522,6 +1540,10 @@
       document.querySelector('input[name="tempunit"][value="'+(cfg.tempUnit||'C')+'"]').checked = true;
       byId('weatherInt').value = cfg.weatherIntervalMin || 30;
       byId('bgUrl').value = cfg.bgUrl || '';
+      byId('bgSource').value = cfg.bgSource === 'ipumpmini' ? 'ipumpmini' : 'nightscout';
+      byId('ompUrl').value = cfg.ompUrl || 'http://127.0.0.1:17580';
+      byId('ompFallback').checked = !!cfg.ompFallback;
+      updateSourceFields();
       if (byId('authToken')) byId('authToken').value = cfg.authToken || '';
       byId('bgTimeout').value = cfg.bgTimeoutMin || 20;
       byId('bgFetchInt').value = cfg.bgFetchIntervalMin || 5;
@@ -1688,3 +1710,17 @@
 
   document.addEventListener('DOMContentLoaded', init);
 })(); 
+
+// Data source: iPump-mini fields, Nightscout fields only for Nightscout or the fallback
+function updateSourceFields() {
+  var omp = document.getElementById('bgSource').value === 'ipumpmini';
+  document.getElementById('ompFields').hidden = !omp;
+  document.getElementById('nsFields').hidden = omp && !document.getElementById('ompFallback').checked;
+}
+document.addEventListener('DOMContentLoaded', function() {
+  ['bgSource', 'ompFallback'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateSourceFields);
+  });
+  updateSourceFields();
+});

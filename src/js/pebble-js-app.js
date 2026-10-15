@@ -7,6 +7,9 @@ var keys = require('message_keys');
     weatherApi: 'https://api.open-meteo.com/v1/forecast',
     bgUrl: null,
     authToken: null,
+    bgSource: 'nightscout',          // 'nightscout' | 'ipumpmini' (local iPhone app)
+    ompUrl: 'http://127.0.0.1:17580',
+    ompFallback: false,              // iPump-mini: Nightscout (bgUrl/authToken) as fallback
     bgTimeoutMin: 20,
     low: 80,
     high: 180,
@@ -70,7 +73,7 @@ var keys = require('message_keys');
 
   var isBWPlatform = false;
   var isPebble2 = false;
-  var BG_STATUS = { OK: 0, NO_DATA: 1, NO_CONN: 2, OLD: 3 };
+  var BG_STATUS = { OK: 0, NO_DATA: 1, NO_CONN: 2, OLD: 3, NO_APP: 4 };
 
   function quantize(hex) {
     hex = (hex||'').toUpperCase();
@@ -334,253 +337,59 @@ var keys = require('message_keys');
   setTimeout(fetchWeather, 1000);
   }
 
-  function scheduleBG() {
-    var anyBG = config.rows && config.rows.some(function(r){ return r.type === 5; });
-    if (!anyBG || !config.bgUrl) {
-      if (scheduleBG._timer) {
-        clearTimeout(scheduleBG._timer);
-        scheduleBG._timer = null;
-      }
-      return;
-    }
-    if (scheduleBG._timer) {
-      clearTimeout(scheduleBG._timer);
-      scheduleBG._timer = null;
-    }
-    fetchBG();
-  }
+  // ── CGM data source: shared library pebble-cgm (src/js/cgm.js) ─────────────
+  // Nightscout (default) or iPump-mini (local iPhone app, wake schedule, optional
+  // Nightscout fallback). Same logic as CasioCGM and 91 Dub CGM.
+  function isIpumpMini() { return config.bgSource === 'ipumpmini'; }
+  function hasCgmRow() { return config.rows && config.rows.some(function(r){ return r.type === 5; }); }
 
-  function scheduleNextBG(delayMs) {
-    if (scheduleBG._timer) {
-      clearTimeout(scheduleBG._timer);
-      scheduleBG._timer = null;
-    }
-    var ms = Math.max(15000, parseInt(delayMs, 10) || 0);
-    scheduleBG._timer = setTimeout(fetchBG, ms);
-  }
-
-  // Learned upload lag (battery, same logic as casiocgm v2.3): many
-  // uploaders/bridges put a reading into Nightscout minutes after it was
-  // measured; fetching at the fixed +30 s then means ~10 extra 15 s polls per
-  // reading. The lag is learned and the fetch planned at
-  // reading + interval + max(30 s, lag + 10 s):
-  //   - a new reading appeared between the previous and this fetch:
-  //     previous fetch <= 20 s ago -> exact sample (now - reading time):
-  //     increases taken at once, decreases smoothed (EMA 50 %);
-  //     previous fetch longer ago but already later than the learned lag ->
-  //     raise to the middle of that window; otherwise only an upper bound ->
-  //     lag = min(lag, sample)
-  //   - probe once per reading at half the learned lag (min. +30 s): a hit
-  //     halves the lag, so a lag learned in a slow phase drops back within a
-  //     few readings (fixed +30 s probe let it get stuck high -> values
-  //     shown minutes late / stale for > 10 min)
-  //   - lag capped at one sensor interval
-  //   - overdue: poll every 15 s, after 2 min overdue (sensor gap/warm-up)
-  //     only every 60 s
-  var LAG_KEY = 'supercgm_upload_lag';
-  var lagSec = 0;
-  try { lagSec = Math.max(0, parseInt(localStorage.getItem(LAG_KEY), 10) || 0); } catch (e) {}
-  var lastSeenTsSec = 0, prevFetchNow = 0, prevMissed = false;
-
-  function learnUploadLag(bgTsSec, serverNowSec, sensorSec) {
-    if (lastSeenTsSec && bgTsSec > lastSeenTsSec) {
-      var sample = Math.max(0, serverNowSec - bgTsSec);            // upper bound
-      var lower  = prevMissed ? prevFetchNow - bgTsSec : -1;       // lower bound
-      if (prevMissed && serverNowSec - prevFetchNow <= 20) {
-        lagSec = sample > lagSec ? sample : Math.round((lagSec + sample) / 2);
-      } else if (lower > lagSec) {
-        lagSec = Math.round((lower + sample) / 2);
-      } else {
-        lagSec = Math.min(lagSec, sample);
-      }
-      lagSec = Math.min(lagSec, sensorSec);
-      try { localStorage.setItem(LAG_KEY, String(lagSec)); } catch (e) {}
-    }
-    prevMissed = (bgTsSec === lastSeenTsSec);
-    lastSeenTsSec = bgTsSec;
-    prevFetchNow = serverNowSec;
-  }
-
-  function planNextBGFetch(lastBgTsSec, serverNowSec) {
-    var anyBG = config.rows && config.rows.some(function(r){ return r.type === 5; });
-    if (!anyBG || !config.bgUrl) {
-      if (scheduleBG._timer) {
-        clearTimeout(scheduleBG._timer);
-        scheduleBG._timer = null;
-      }
-      return;
-    }
-
-    var manualMin = Math.max(1, parseInt(config.bgManualIntervalMin || config.bgFetchIntervalMin || 5, 10));
-    var manualMs = manualMin * 60 * 1000;
-    var useSync = config.syncBgWithInterval !== false;
-    if (!useSync) {
-      scheduleNextBG(manualMs);
-      return;
-    }
-
-    var sensorIntervalSec = Math.max(1, parseInt(config.bgFetchIntervalMin || 5, 10)) * 60;
-    if (lastBgTsSec && isFinite(lastBgTsSec) && lastBgTsSec > 0) {
-      var nowSec = (serverNowSec && isFinite(serverNowSec) && serverNowSec > 0) ? serverNowSec : Math.floor(Date.now() / 1000);
-      learnUploadLag(lastBgTsSec, nowSec, sensorIntervalSec);
-      var offsetSec = Math.max(30, lagSec + 10);                     // issue #14: timestamp + 30s
-      var dueSec = lastBgTsSec + sensorIntervalSec + offsetSec;
-      var probeSec = lastBgTsSec + sensorIntervalSec + Math.max(30, Math.round(lagSec / 2));
-      var delay = (dueSec - nowSec) * 1000;
-      if (dueSec - probeSec >= 30 && probeSec > nowSec + 5) {
-        delay = (probeSec - nowSec) * 1000;                          // probe at half the lag
-      }
-      if (delay < 15000) delay = (nowSec - dueSec > 120) ? 60000 : 15000;
-      if (delay > manualMs * 3) delay = manualMs;
-      scheduleNextBG(delay);
-      return;
-    }
-
-    scheduleNextBG(Math.min(manualMs, 60000));
-  }
-
-  function fetchBG() {
-    function sendStatus(status, dict) {
-      var payload = dict || {};
-      payload.BG_STATUS = status;
+  var cgm = require('./cgm')({
+    name: 'supercgm',
+    settings: function() {
+      return {
+        source: isIpumpMini() ? 'ipumpmini' : 'nightscout',
+        nsUrl: config.bgUrl, nsToken: config.authToken,
+        ompUrl: config.ompUrl || 'http://127.0.0.1:17580', ompFallback: !!config.ompFallback,
+        sensorMin: Math.max(1, parseInt(config.bgFetchIntervalMin || 5, 10)),
+        sync: config.syncBgWithInterval !== false,
+        manualMin: Math.max(1, parseInt(config.bgManualIntervalMin || config.bgFetchIntervalMin || 5, 10))
+      };
+    },
+    onReading: function(r) {
+      var mmol = config.bgUnit === 'mmol';
+      var dir = r.direction.toLowerCase(), arrow = '';
+      if (dir.indexOf('doubleup') >= 0) arrow = '^^';
+      else if (dir.indexOf('singleup') >= 0 || dir === 'up') arrow = '^';
+      else if (dir.indexOf('fortyfiveup') >= 0) arrow = '^>';
+      else if (dir.indexOf('flat') >= 0) arrow = '-';
+      else if (dir.indexOf('fortyfivedown') >= 0) arrow = '>v';
+      else if (dir.indexOf('singledown') >= 0 || dir === 'down') arrow = 'v';
+      else if (dir.indexOf('doubledown') >= 0) arrow = 'vv';
+      // mmol: send mmol x10 so C can display "X.Y" without conversion
+      var payload = {
+        BG_STATUS: r.stale ? BG_STATUS.OLD : BG_STATUS.OK,
+        BG_SGV: mmol ? Math.round(r.sgvMgdl * 10 / 18) : r.sgvMgdl,
+        BG_TIMESTAMP: r.tsSec,
+        BG_TREND: arrow,
+        BG_UNIT: mmol ? 1 : 0,
+        BG_DELTA: isFinite(r.deltaMgdl) ? (mmol ? Math.round(r.deltaMgdl * 10 / 18) : Math.round(r.deltaMgdl)) : -9999,
+        CGM_SOURCE: r.fallback ? 1 : 0
+      };
       Pebble.sendAppMessage(toKeyed(payload));
+    },
+    onStatus: function(code) {
+      var st = code === 'NO_APP' ? BG_STATUS.NO_APP : code === 'NO_CONN' ? BG_STATUS.NO_CONN : BG_STATUS.NO_DATA;
+      Pebble.sendAppMessage(toKeyed({ BG_STATUS: st }));
+    },
+    onWakeSchedule: function(next, interval) {
+      // The watch wakes this JS with REQUEST_BG at the app's next wake (reliable clock).
+      Pebble.sendAppMessage(toKeyed({ CGM_WAKE_NEXT: next, CGM_WAKE_INTERVAL: interval }));
     }
-    if (!config.bgUrl) {
-      sendStatus(BG_STATUS.NO_DATA);
-      planNextBGFetch(null);
-      return;
-    }
-    var baseUrl = config.bgUrl.replace(/\/$/, '');
-    // If bgUrl already contains /pebble (e.g. with ?token= workaround), use as-is
-    var url = (baseUrl.indexOf('/pebble') >= 0) ? baseUrl : baseUrl + '/pebble';
-    if (config.authToken && url.indexOf('token=') < 0) {
-      url += (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(config.authToken);
-    }
-    var req = new XMLHttpRequest();
-    // Guard: on some phones an XHR never calls onload/onerror/ontimeout;
-    // the fetch chain (one setTimeout) would then stop for good.
-    var done = false;
-    var guard = setTimeout(function() {
-      if (done) return;
-      done = true;
-      console.log('BG fetch hung, retrying');
-      try { req.abort(); } catch (e) {}
-      planNextBGFetch(null);
-    }, 25000);
-    function finish() {
-      if (done) return false;
-      done = true;
-      clearTimeout(guard);
-      return true;
-    }
-    req.onload = function() {
-      if (!finish()) return;
-      try {
-        if (this.status && (this.status < 200 || this.status >= 300)) {
-          sendStatus(BG_STATUS.NO_CONN);
-          planNextBGFetch(null);   // keep polling (previously stopped for good)
-          return;
-        }
-        var json = JSON.parse(this.responseText);
-        // responses can vary; handle Nightscout /pebble (json.bgs[0]) and others
-        var sgv = null, ts = null, trend = null, bgDelta = null, serverNow = null;
+  });
 
-        // Parse SGV: auto-detect if NS sends mmol (float < 40) or mg/dL (integer >= 40).
-        // When bgUnit is mmol, always send mmol×10 so C can display "X.Y" without conversion.
-        function parseSgv(raw) {
-          var f = parseFloat(raw);
-          if (!isFinite(f) || f <= 0) return NaN;
-          if (config.bgUnit === 'mmol') {
-            return f < 40 ? Math.round(f * 10) : Math.round(f * 10 / 18);
-          } else {
-            return f < 40 ? Math.round(f * 18) : Math.round(f);
-          }
-        }
-        function parseDelta(raw) {
-          var f = parseFloat(raw);
-          if (!isFinite(f)) return NaN;
-          if (config.bgUnit === 'mmol') {
-            return Math.abs(f) < 30 ? Math.round(f * 10) : Math.round(f * 10 / 18);
-          } else {
-            return Math.abs(f) < 30 && String(raw).indexOf('.') >= 0
-              ? Math.round(f * 18) : Math.round(f);
-          }
-        }
-
-        if (json && Array.isArray(json.bgs) && json.bgs.length > 0) {
-          var b = json.bgs[0];
-          sgv = parseSgv(b.sgv || b.glucose || b.value);
-          ts = parseInt((b.datetime || b.date || b.mills || b.timestamp || 0), 10);
-          trend = b.direction || b.trend || null;
-          bgDelta = parseDelta(b.bgdelta);
-          if (json.status && Array.isArray(json.status) && json.status[0]) {
-            serverNow = parseInt(json.status[0].now || 0, 10);
-          }
-        } else if (Array.isArray(json) && json.length > 0) {
-          sgv = parseSgv(json[0].sgv || json[0].glucose || json[0].value);
-          ts = parseInt((json[0].datetime || json[0].date || json[0].mills || json[0].timestamp || 0), 10);
-          trend = json[0].direction || json[0].trend || null;
-          bgDelta = parseDelta(json[0].bgdelta);
-        } else if (json && (json.sgv || json.value || json.glucose)) {
-          sgv = parseSgv(json.sgv || json.value || json.glucose);
-          ts = parseInt(json.datetime || json.date || json.mills || json.timestamp || 0, 10);
-          trend = json.direction || json.trend || null;
-          bgDelta = parseDelta(json.bgdelta);
-        }
-        if (ts && ts > 1000000000000) { // ms -> s
-          ts = Math.floor(ts / 1000);
-        }
-        if (serverNow && serverNow > 1000000000000) {
-          serverNow = Math.floor(serverNow / 1000);
-        }
-        if (isFinite(sgv) && sgv > 0) {
-          var nowSec = (serverNow && isFinite(serverNow) && serverNow > 0) ? serverNow : Math.floor(Date.now() / 1000);
-          var bgTs = ts || nowSec;
-          var ageSec = nowSec - bgTs;
-          var fetchIntervalSec = Math.max(1, parseInt(config.bgFetchIntervalMin || 5, 10)) * 60;
-          var status = (ageSec > fetchIntervalSec * 2) ? BG_STATUS.OLD : BG_STATUS.OK;
-          // Map trend to a compact arrow string for watch to display
-          var arrow = '';
-          var dir = (trend||'').toLowerCase();
-          if (dir.indexOf('doubleup')>=0) arrow='^^';
-          else if (dir.indexOf('singleup')>=0 || dir==='up') arrow='^';
-          else if (dir.indexOf('fortyfiveup')>=0) arrow='^>';
-          else if (dir.indexOf('flat')>=0) arrow='-';
-          else if (dir.indexOf('fortyfivedown')>=0) arrow='>v';
-          else if (dir.indexOf('singledown')>=0 || dir==='down') arrow='v';
-          else if (dir.indexOf('doubledown')>=0) arrow='vv';
-
-          var extras = {
-            'BG_SGV': sgv,
-            'BG_TIMESTAMP': bgTs,
-            'BG_TREND': arrow,
-            'BG_UNIT': (config.bgUnit === 'mmol' ? 1 : 0)
-          };
-          extras['BG_DELTA'] = (isFinite(bgDelta) && bgDelta !== null) ? bgDelta : -9999;
-          sendStatus(status, extras);
-          planNextBGFetch(bgTs, nowSec);
-        } else {
-          sendStatus(BG_STATUS.NO_DATA);
-          planNextBGFetch(null);
-        }
-      } catch(e) {
-        sendStatus(BG_STATUS.NO_DATA);
-        planNextBGFetch(null);
-      }
-    };
-    req.onerror = function() {
-      if (!finish()) return;
-      sendStatus(BG_STATUS.NO_CONN);
-      planNextBGFetch(null);
-    };
-    req.ontimeout = function() {
-      if (!finish()) return;
-      sendStatus(BG_STATUS.NO_CONN);
-      planNextBGFetch(null);
-    };
-    req.open('GET', url);
-    req.timeout = 10000;
-    req.send();
+  function scheduleBG() {
+    if (!hasCgmRow() || (!config.bgUrl && !isIpumpMini())) { cgm.stop(); return; }
+    cgm.start();
   }
 
   function loadSavedConfig() {
@@ -599,6 +408,9 @@ var keys = require('message_keys');
           if (!cfg.bgManualIntervalMin) cfg.bgManualIntervalMin = 5;
           if (!cfg.bgColor) cfg.bgColor = '#000000';
           if (cfg.authToken === undefined) cfg.authToken = null;
+          if (!cfg.bgSource) cfg.bgSource = 'nightscout';
+          if (!cfg.ompUrl) cfg.ompUrl = 'http://127.0.0.1:17580';
+          cfg.ompFallback = cfg.ompFallback === true || cfg.ompFallback === 1 || cfg.ompFallback === '1';
           // Migrate old configs: if unit is mmol but thresholds look like mg/dL (>30), convert
           if (cfg.bgUnit === 'mmol' && cfg.low > 30) {
             cfg.low  = Math.round(cfg.low  * 10 / 18) / 10;
@@ -639,8 +451,8 @@ var keys = require('message_keys');
   fetchWeather();
     }
     if (e.payload && e.payload.REQUEST_BG) {
-  console.log('REQUEST_BG received');
-  fetchBG();
+      console.log('REQUEST_BG received');
+      if (hasCgmRow()) cgm.fetchNow();
     }
   });
 
@@ -703,6 +515,9 @@ var keys = require('message_keys');
       if (config.syncBgWithInterval === undefined) config.syncBgWithInterval = true;
       if (!config.bgManualIntervalMin) config.bgManualIntervalMin = 5;
       if (config.authToken === undefined) config.authToken = null;
+      if (!config.bgSource) config.bgSource = 'nightscout';
+      if (!config.ompUrl) config.ompUrl = 'http://127.0.0.1:17580';
+      config.ompFallback = config.ompFallback === true || config.ompFallback === 1 || config.ompFallback === '1';
       // Persist to pkjs storage so it survives app restarts
       try { localStorage.setItem('supercgm_config', JSON.stringify(config)); } catch(_e) {}
       sendConfig();

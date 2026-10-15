@@ -137,8 +137,21 @@
         <h2 id="bgTitle">Nightscout</h2>
         <p id="bgIntro">Only shown when at least one row is set to Nightscout BG. Set URL, timeout, refresh, thresholds, and colors.</p>
       </div>
+      <label><span id="bgSourceLabel">Data source</span>
+        <select id="bgSource">
+          <option value="nightscout">Nightscout</option>
+          <option value="ipumpmini" id="bgSourceIpump">iPump-mini (local, this iPhone)</option>
+        </select>
+      </label>
+      <div id="ompFields" hidden>
+        <label><span id="ompUrlLabel">iPump-mini server</span> <input type="url" id="ompUrl" placeholder="http://127.0.0.1:17580"></label>
+        <label><input type="checkbox" id="ompFallback"> <span id="ompFallbackLabel">Nightscout as fallback</span></label>
+        <p class="hint" id="ompHint">iPump-mini reads a MiniMed 780G directly on the iPhone, no internet needed. The fallback is only used when the app is unreachable (at most every 5 min).</p>
+      </div>
+      <div id="nsFields">
       <label><span id="bgUrlLabel">Nightscout URL</span> <input type="url" id="bgUrl" placeholder="https://myns.example.com"></label>
       <label><span id="authTokenLabel">Auth Token (optional)</span> <input type="text" id="authToken" placeholder="yourToken123" autocomplete="off" spellcheck="false"></label>
+      </div>
       <label><span id="bgTimeoutLabel">Timeout (min)</span> <input type="number" id="bgTimeout" value="20" min="5" max="120"></label>
       <label><span id="bgRefreshLabel">BG interval (min)</span> <input type="number" id="bgFetchInt" value="5" min="1" max="180" inputmode="numeric"></label>
       <label><input type="checkbox" id="syncBgWithInterval" checked> <span id="syncBgWithIntervalLabel">Sync with BG interval (timestamp + 30s)</span></label>

@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include "cgm.h"   // shared CGM logic (github.com/sgitaize/pebble-cgm)
 
 #if defined(PBL_PLATFORM_GABBRO)
 #define ROWS 5
@@ -26,7 +27,8 @@ typedef enum {
   BG_STATUS_OK      = 0,  /* valid reading                          */
   BG_STATUS_NO_DATA = 1,  /* server responded, nothing parseable    */
   BG_STATUS_NO_CONN = 2,  /* network / phone unreachable            */
-  BG_STATUS_OLD     = 3   /* JS confirmed reading is stale          */
+  BG_STATUS_OLD     = 3,  /* JS confirmed reading is stale          */
+  BG_STATUS_NO_APP  = 4   /* iPump-mini unreachable for 15 min: open the app */
 } BgStatus;
 
 static Window *s_main_window;
@@ -68,6 +70,8 @@ static int s_bg_unit_mmol = 0; // 0 mg/dL, 1 mmol
 
 static int s_bg_sgv = -1;
 static int s_bg_delta = -9999;
+static int s_bg_source = 0;   // 1 = value from the Nightscout fallback (cloud next to the arrow)
+#define PERSIST_CGM_KEY 1003    // last reading (pebble-cgm CgmLast), shown after a restart
 static BgStatus s_bg_status = BG_STATUS_NO_CONN;
 static time_t s_bg_timestamp = 0;
 static int s_bg_timeout_min = 20;
@@ -525,6 +529,8 @@ static void draw_all_rows(void) {
     int age_sec = (int)(now - s_bg_timestamp);
     if (s_bg_status == BG_STATUS_NO_CONN) {
       snprintf(s_bg, sizeof(s_bg), "NOCON");
+    } else if (s_bg_status == BG_STATUS_NO_APP) {
+      snprintf(s_bg, sizeof(s_bg), "NOAPP");   // iPump-mini: open the iPhone app
     } else if (s_bg_status == BG_STATUS_NO_DATA || s_bg_sgv < 0) {
       snprintf(s_bg, sizeof(s_bg), "NO-BG");
     } else if (s_bg_status == BG_STATUS_OLD || age_sec > stale_sec) {
@@ -626,7 +632,7 @@ static void draw_all_rows(void) {
             else color = s_col_in;
           }
         } else if (s_bg_status == BG_STATUS_NO_CONN || s_bg_status == BG_STATUS_NO_DATA
-                   || s_bg_status == BG_STATUS_OLD) {
+                   || s_bg_status == BG_STATUS_OLD || s_bg_status == BG_STATUS_NO_APP) {
 #if defined(PBL_COLOR)
           color = GColorLightGray;
 #endif
@@ -865,6 +871,40 @@ static void update_time(void) {
 }
 
 // Messaging
+// ── Last reading and wake timer (pebble-cgm) ──────────────────────────────────
+static void request_bg_now(void) {
+  DictionaryIterator *iter;
+  if (app_message_outbox_begin(&iter) == APP_MSG_OK) {
+    dict_write_int32(iter, MESSAGE_KEY_REQUEST_BG, 1);
+    app_message_outbox_send();
+  }
+}
+
+static void save_last_bg(void) {
+  if (s_bg_sgv < 0 || s_bg_timestamp <= 0) return;
+  CgmLast last;
+  memset(&last, 0, sizeof(last));
+  last.fallback = (uint8_t)s_bg_source;
+  last.ts = (int32_t)s_bg_timestamp;
+  last.sgv = s_bg_sgv > 0 ? s_bg_sgv : 1;
+  last.delta = (int16_t)s_bg_delta;
+  last.value[0] = s_bg_unit_mmol ? '1' : '0';   // unit marker
+  snprintf(last.trend, sizeof(last.trend), "%s", s_bg_trend);
+  cgm_last_save(PERSIST_CGM_KEY, &last);
+}
+
+static void load_last_bg(void) {
+  CgmLast last;
+  if (!cgm_last_load(PERSIST_CGM_KEY, &last, 6 * 3600)) return;
+  s_bg_sgv = last.sgv;
+  s_bg_delta = last.delta;
+  s_bg_timestamp = (time_t)last.ts;
+  s_bg_unit_mmol = last.value[0] == '1' ? 1 : 0;
+  s_bg_source = last.fallback;
+  snprintf(s_bg_trend, sizeof(s_bg_trend), "%s", last.trend);
+  s_bg_status = BG_STATUS_OK;   // staleness follows from the timestamp
+}
+
 static void inbox_received_callback(DictionaryIterator *iter, void *context) {
   Tuple *t;
   bool config_changed = false;
@@ -894,7 +934,7 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     s_bg_status = (BgStatus)t->value->int32;
     // For NO_DATA and NO_CONN there is no valid reading — clear sgv and trend.
     // For BG_STATUS_OLD the SGV value is still valid (just stale), so keep it.
-    if (s_bg_status == BG_STATUS_NO_DATA || s_bg_status == BG_STATUS_NO_CONN) {
+    if (s_bg_status == BG_STATUS_NO_DATA || s_bg_status == BG_STATUS_NO_CONN || s_bg_status == BG_STATUS_NO_APP) {
       s_bg_sgv = -1;
       s_bg_delta = -9999;
       s_bg_trend[0] = 0;
@@ -909,6 +949,13 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
   }
   if ((t = dict_find(iter, MESSAGE_KEY_BG_DELTA))) {
     s_bg_delta = (int)t->value->int32;
+  }
+  if ((t = dict_find(iter, MESSAGE_KEY_CGM_SOURCE))) {
+    s_bg_source = (int)t->value->int32;
+  }
+  cgm_wake_handle_inbox(iter, MESSAGE_KEY_CGM_WAKE_NEXT, MESSAGE_KEY_CGM_WAKE_INTERVAL);
+  if (dict_find(iter, MESSAGE_KEY_BG_SGV) && (s_bg_status == BG_STATUS_OK || s_bg_status == BG_STATUS_OLD)) {
+    save_last_bg();
   }
   if ((t = dict_find(iter, MESSAGE_KEY_WEATHER_RAIN3H))) {
     s_weather_rain3h = (int)t->value->int32;
@@ -1245,6 +1292,7 @@ static void init(void) {
   } else {
     load_config_cache();
   }
+  load_last_bg();   // show the last reading right away (pebble-cgm)
 
   // Load fonts before creating/pushing window so layers can use them in load()
   s_font_dseg_30 = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_DSEG_30_BOLD));
@@ -1290,6 +1338,7 @@ static void init(void) {
   });
 
   // Messaging
+  cgm_wake_init(request_bg_now);
   app_message_register_inbox_received(inbox_received_callback);
   app_message_register_inbox_dropped(inbox_dropped_callback);
   app_message_register_outbox_failed(outbox_failed_callback);
@@ -1301,6 +1350,7 @@ static void init(void) {
 }
 
 static void deinit(void) {
+  cgm_wake_deinit();
   accel_tap_service_unsubscribe();
   connection_service_unsubscribe();
   if (s_shake_timer) { app_timer_cancel(s_shake_timer); s_shake_timer = NULL; }
@@ -1398,6 +1448,9 @@ static void trend_update_proc(Layer *layer, GContext *ctx) {
   // Determine what to draw from s_bg_trend string; support '↑↑', '↑', '↗', '→', '↘', '↓', '↓↓' and ASCII fallbacks '^^','^','/>','-','\\>','v','vv'
   const char *t = s_bg_trend;
   GRect b = layer_get_bounds(layer);
+  if (s_bg_source == 1) {   // value from the Nightscout fallback
+    cgm_draw_cloud(ctx, GPoint(b.origin.x + 6, b.origin.y + 4), s_bg_trend_color);
+  }
   graphics_context_set_stroke_color(ctx, s_bg_trend_color);
   graphics_context_set_fill_color(ctx, s_bg_trend_color);
   graphics_context_set_stroke_width(ctx, 2);

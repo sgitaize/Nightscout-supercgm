@@ -1,0 +1,41 @@
+The ultimate Nightscout watchface for every Pebble. Five fully configurable rows — each independently set to any data source you need, in your color.
+
+ROWS (pick any per slot)
+• Nightscout BG — live glucose with trend arrow
+• BG Delta — signed change (+6 / -4 / +-0)
+• BG Timestamp — time of last reading
+• Time
+• Date
+• Weekday
+• Weather — temperature in °C or °F
+• Rain next 3h — precipitation probability
+• Steps
+• Heart Rate
+• Battery
+
+NIGHTSCOUT
+Connects directly to your Nightscout URL. Auto-refresh with timestamp-sync mode or manual interval. Alerts on low (3 pulses) and high BG (2 pulses). Stale data shown as OLD-BG, connection loss as NOCON.
+
+DATA SOURCES
+• Nightscout (default) — your Nightscout URL, optional token
+• iPump-mini — reads a MiniMed 780G directly on your iPhone, no internet and no Nightscout needed (github.com/sgitaize/iPump-mini). Optional Nightscout fallback; fallback values are marked with a small cloud. Shows NOAPP if the iPhone app is not running.
+
+SHAKE TO REVEAL
+Shake or tap your Pebble to show a second set of values for 5 seconds — configure each row independently for a quick info layer.
+
+ALL PEBBLE MODELS SUPPORTED
+• Pebble / Steel — B/W, 5 rows
+• Pebble 2 / Core2Duo — B/W with color reverse, 5 rows
+• Pebble Time / Steel / Flint — full color, 5 rows
+• Pebble Time 2 / Emery — full color, 5 rows
+• Pebble Time Round — full color, 4 rows
+• Pebble Round 2 / Gabbro — full color, 5 rows
+
+CONFIGURE IN YOUR BROWSER
+Live preview mirrors your exact watch model. Pick colors, set thresholds, preview ghost density and shake layout — before it hits your wrist.
+
+OPEN SOURCE · MIT LICENSE
+github.com/sgitaize/Nightscout-supercgm
+
+☕ Like it? Buy me a Paulaner Spezi:
+paypal.com/donate/?hosted_button_id=LGAZB9PR4YV5L
