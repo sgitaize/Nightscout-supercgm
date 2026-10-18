@@ -33,12 +33,18 @@ bool cgm_last_load(uint32_t persist_key, CgmLast *last, int max_age_s);
 
 // Wake timer for the iPump-mini source. PebbleKit JS timers are throttled while the
 // phone app is in the background; the watch keeps reliable time and asks the phone at
-// the announced wake of the iPhone app (+3 s, +11 s, +19 s).
-// `request_fetch` must send your "request BG" message to the phone.
+// the announced wake of the iPhone app (+3 s, +11 s, +19 s). If no new schedule came back
+// (window missed), it searches with one request every 15 s for one interval.
+// `request_fetch` must send your "request BG" message to the phone, ideally with
+// cgm_send_request().
 void cgm_wake_init(void (*request_fetch)(void));
 // Call from your inbox handler: reads the next wake (Unix s) and interval (s).
 void cgm_wake_handle_inbox(DictionaryIterator *iter, uint32_t key_next, uint32_t key_interval);
 void cgm_wake_deinit(void);
+
+// Sends a one-byte "request BG" message under `key`; retries every 1.5 s (up to 5 tries)
+// while the outbox is busy instead of dropping the request.
+void cgm_send_request(uint32_t key);
 
 // Tiny cloud (about 11 x 7 px) centred at `c`: marks a value from the Nightscout fallback.
 void cgm_draw_cloud(GContext *ctx, GPoint c, GColor color);

@@ -10,8 +10,20 @@
  *     each pump update (every 5 min); /pebble reports that schedule in `ompSync`.
  *     Fetches follow it, and the watch (reliable clock) is told the next wake so it can
  *     wake this JS with a request when PebbleKit JS timers are throttled.
+ *     If a wake window is missed (the app's rhythm shifted, a message got lost), the
+ *     library searches: one request every 15 s (shorter than the window) for up to two
+ *     intervals, until a response brings the new schedule.
  *     Optional fallback: the Nightscout settings, used only after a missed wake window,
  *     at most every 4.5 min. After 15 min without any value: status NO_APP.
+ *
+ * Robustness
+ *   - At most one request in flight; a request from the watch while one is pending is
+ *     skipped (the pending one is answered when the app wakes). Answers to requests
+ *     superseded by a newer success are ignored.
+ *   - start() re-sends the stored wake schedule, so a restarted watch face has its wake
+ *     timer before the first answer.
+ *   - require('./cgm').outbox(name): AppMessage queue with ack timeout (lost callbacks
+ *     no longer block it), retries and coalescing by key. Use it for all messages.
  *
  * Usage
  *   var cgm = require('./cgm')({
@@ -25,8 +37,14 @@
  *   });
  *   cgm.start();      // (re)start after ready / config change
  *   cgm.fetchNow();   // the watch asked for a value (REQUEST_BG)
+ *
+ *   var outbox = require('./cgm').outbox('casiocgm');
+ *   outbox.send(msg, 'BG', {key: 'bg', ok: function() {}});  // key: replaces a queued
+ *                                                             // message with the same key
  */
-module.exports = function (opts) {
+var SEARCH_STEP_MS = 15000;   // < the 25 s wake window: a search cannot step over it
+
+function createCgm(opts) {
   var LOG = '[' + opts.name + '] ';
   var LAG_KEY = opts.name + '_upload_lag';
   var SYNC_KEY = opts.name + '_ompsync';
@@ -34,6 +52,8 @@ module.exports = function (opts) {
   var connFailSince = 0, lastFallbackTry = 0, lastFallbackOk = 0;
   var lagSec = 0, lastSeenTsSec = 0, prevFetchNow = 0, prevMissed = false;
   var ompSync = null;   // {next: ms, interval: ms, window: ms} in phone time
+  var inflight = null;  // {id, started, fallback} of the pending request
+  var reqSeq = 0, lastOkStarted = 0, searchUntil = 0;
   try { lagSec = Math.max(0, parseInt(localStorage.getItem(LAG_KEY), 10) || 0); } catch (e) {}
   try { ompSync = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); } catch (e) { ompSync = null; }
 
@@ -101,18 +121,30 @@ module.exports = function (opts) {
     return true;
   }
 
+  function sendStoredSchedule() {
+    if (!ompSync || !ompSync.next || !opts.onWakeSchedule) return;
+    var now = Date.now(), next = ompSync.next;
+    if (now - next > 6 * 3600000) return;   // too old to be useful
+    while (next + ompSync.window < now) next += ompSync.interval;
+    opts.onWakeSchedule(Math.round(next / 1000), Math.round(ompSync.interval / 1000));
+  }
+
   // Inside a wake window: retry every 3 s; otherwise wait for the next wake (+2 s).
+  // While searching (missed window): every 15 s.
   function planOmp() {
     if (!ompSync || !ompSync.next) return false;
     var now = Date.now(), next = ompSync.next;
     while (next + ompSync.window + 10000 < now) next += ompSync.interval;
-    schedule(now >= next ? 3000 : Math.max(1000, next - now + 2000), 'iPump-mini wake');
+    var ms = now >= next ? 3000 : Math.max(1000, next - now + 2000);
+    if (now < searchUntil && ms > SEARCH_STEP_MS) { schedule(SEARCH_STEP_MS, 'iPump-mini search'); return true; }
+    schedule(ms, 'iPump-mini wake');
     return true;
   }
 
   // ── Failures ───────────────────────────────────────────────────────────────
-  function failed(fallback) {
+  function failed(fallback, started) {
     var now = Date.now();
+    if (started && started < lastOkStarted) return;   // a newer request already succeeded
     if (!connFailSince) connFailSince = now;
     if (!isOmp()) {
       opts.onStatus('NO_CONN');
@@ -124,6 +156,12 @@ module.exports = function (opts) {
     // With a known wake schedule a failed request means the expected window did not
     // open (app not running): fall back right after it. Without a schedule wait 6 min.
     var missedWindow = ompSync && ompSync.next ? now - connFailSince > 45000 || connFailSince === now : now - connFailSince > 6 * 60000;
+    // Missed a window: the app's rhythm may have shifted. Search for one interval (+1 min),
+    // again after 30 min if the app stays unreachable.
+    if (!fallback && ompSync && ompSync.next && (!searchUntil || now > searchUntil + 30 * 60000)) {
+      searchUntil = now + ompSync.interval + 60000;
+      console.log(LOG + 'missed iPump-mini window, searching');
+    }
     if (!fallback && hasFallback() && missedWindow && now - lastFallbackTry > 270000) {
       lastFallbackTry = now;
       fetch(true);
@@ -146,11 +184,23 @@ module.exports = function (opts) {
   }
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
-  function fetch(fallback) {
+  function fetch(fallback, fromWatch) {
     var c = s();
     var omp = isOmp() && !fallback;
+    var started = Date.now();
+    // One request at a time: a pending one is answered when the app wakes. Time-based,
+    // because JS timers (and with them the guard below) may be throttled.
+    if (!fallback && inflight && !inflight.fallback && started - inflight.started < 20000) {
+      console.log(LOG + 'request pending, skipped' + (fromWatch ? ' (watch)' : ''));
+      if (!fromWatch) schedule(20000, 'request pending');   // keep the timer chain alive
+      return;
+    }
+    clearTimer();
+    var id = ++reqSeq;
+    inflight = { id: id, started: started, fallback: !!fallback };
+    function release() { if (inflight && inflight.id === id) inflight = null; }
     var url = omp ? (c.ompUrl || 'http://127.0.0.1:17580') : c.nsUrl;
-    if (!url || url.length < 4) { opts.onStatus('NO_URL'); planNightscout(null); return; }
+    if (!url || url.length < 4) { release(); opts.onStatus('NO_URL'); planNightscout(null); return; }
     url = url.replace(/\/$/, '');
     var apiUrl = url.indexOf('/pebble') >= 0 ? url : url + '/pebble';
     if (!omp && c.nsToken && apiUrl.indexOf('token=') < 0) {
@@ -166,13 +216,15 @@ module.exports = function (opts) {
     var guard = setTimeout(function () {   // some phones never call any XHR callback
       if (done) return;
       done = true;
+      release();
       try { req.abort(); } catch (e) {}
-      failed(fallback);
+      failed(fallback, started);
     }, omp ? 60000 : 25000);
-    function finish() { if (done) return false; done = true; clearTimeout(guard); return true; }
+    function finish() { if (done) return false; done = true; clearTimeout(guard); release(); return true; }
     req.onload = function () {
       if (!finish()) return;
-      if (req.status !== 200) { console.log(LOG + 'HTTP ' + req.status); failed(fallback); return; }
+      if (req.status !== 200) { console.log(LOG + 'HTTP ' + req.status); failed(fallback, started); return; }
+      if (started < lastOkStarted) return;   // superseded by a newer answer
       try {
         var data = JSON.parse(req.responseText);
         var bg = null, serverNow = 0;
@@ -191,7 +243,8 @@ module.exports = function (opts) {
         var nowSec = serverNow ? Math.floor(serverNow / 1000) : Math.floor(Date.now() / 1000);
         var tsSec = ts || nowSec;
         var sensorSec = Math.max(1, c.sensorMin || 5) * 60;
-        if (fallback) lastFallbackOk = Date.now(); else connFailSince = 0;
+        if (fallback) lastFallbackOk = Date.now();
+        else { connFailSince = 0; lastOkStarted = started; searchUntil = 0; }
         opts.onReading({
           sgvMgdl: sgv,
           deltaMgdl: parseDeltaMgdl(bg.bgdelta),
@@ -211,14 +264,97 @@ module.exports = function (opts) {
         planNightscout(null);
       }
     };
-    req.onerror = function () { if (finish()) { console.log(LOG + 'fetch error'); failed(fallback); } };
-    req.ontimeout = function () { if (finish()) { console.log(LOG + 'fetch timeout'); failed(fallback); } };
-    req.send();
+    req.onerror = function () { if (finish()) { console.log(LOG + 'fetch error'); failed(fallback, started); } };
+    req.ontimeout = function () { if (finish()) { console.log(LOG + 'fetch timeout'); failed(fallback, started); } };
+    try { req.send(); } catch (e) { if (finish()) { console.log(LOG + 'send error ' + e); failed(fallback, started); } }
   }
 
   return {
-    start: function () { clearTimer(); fetch(false); },
-    fetchNow: function () { clearTimer(); fetch(false); },
+    start: function () {
+      clearTimer();
+      inflight = null;   // settings may have changed: do not wait for an old request
+      if (isOmp()) sendStoredSchedule();
+      fetch(false);
+    },
+    fetchNow: function () { fetch(false, true); },   // skipped while a request is pending
     stop: clearTimer
   };
-};
+}
+
+// ── AppMessage queue ─────────────────────────────────────────────────────────
+// One message in flight. Pebble.sendAppMessage sometimes never calls back (phone app
+// suspended mid-send); before, that blocked the queue for good and the watch got no
+// values or wake schedules until the face was restarted. Now an unanswered send counts
+// as failed after ACK_TIMEOUT_MS (checked by a timer and on every send(), since timers
+// may be throttled). Messages with the same `key` replace each other while queued.
+function createOutbox(name) {
+  var LOG = '[' + name + '] ';
+  var ACK_TIMEOUT_MS = 10000, MAX_TRIES = 3, MAX_QUEUE = 16;
+  var queue = [], current = null, seq = 0, retryTimer = null;
+
+  function pump() {
+    var now = Date.now();
+    if (current && now - current.sentAt > ACK_TIMEOUT_MS) {
+      console.log(LOG + current.label + ': no ack, retrying');
+      done(current, false);
+    }
+    if (current || !queue.length) return;
+    var item = queue[0];
+    item.sentAt = now;
+    item.tries++;
+    var id = item.id = ++seq;
+    current = item;
+    setTimeout(function () { if (current && current.id === id && Date.now() - current.sentAt >= ACK_TIMEOUT_MS) { done(current, false); pump(); } }, ACK_TIMEOUT_MS + 100);
+    try {
+      Pebble.sendAppMessage(item.msg,
+        function () { if (current && current.id === id) { done(item, true); pump(); } },
+        function () { if (current && current.id === id) { done(item, false); later(); } });
+    } catch (e) {
+      console.log(LOG + item.label + ': send error ' + e);
+      done(item, false);
+      later();
+    }
+  }
+
+  function done(item, ok) {
+    current = null;
+    if (ok || item.tries >= MAX_TRIES) {
+      var i = queue.indexOf(item);
+      if (i >= 0) queue.splice(i, 1);
+      if (ok) { if (item.ok) item.ok(); } else console.log(LOG + item.label + ' send failed');
+    }
+  }
+
+  function later() {
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = setTimeout(function () { retryTimer = null; pump(); }, 1000);
+  }
+
+  return {
+    send: function (msg, label, o) {
+      o = o || {};
+      var key = o.key;
+      if (key) {
+        for (var i = 0; i < queue.length; i++) {
+          if (queue[i].key === key && queue[i] !== current) {
+            queue[i].msg = msg; queue[i].label = label; queue[i].ok = o.ok; queue[i].tries = 0;
+            pump();
+            return;
+          }
+        }
+      }
+      while (queue.length >= MAX_QUEUE) {
+        var drop = queue[0] === current ? 1 : 0;
+        if (drop >= queue.length) break;
+        console.log(LOG + queue[drop].label + ' dropped (queue full)');
+        queue.splice(drop, 1);
+      }
+      queue.push({ msg: msg, label: label || 'message', key: key, ok: o.ok, tries: 0 });
+      pump();
+    },
+    size: function () { return queue.length; }
+  };
+}
+
+module.exports = createCgm;
+module.exports.outbox = createOutbox;

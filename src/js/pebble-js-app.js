@@ -343,6 +343,11 @@ var keys = require('message_keys');
   function isIpumpMini() { return config.bgSource === 'ipumpmini'; }
   function hasCgmRow() { return config.rows && config.rows.some(function(r){ return r.type === 5; }); }
 
+  // AppMessage queue (pebble-cgm): reading, status and wake schedule used to be sent back
+  // to back with plain sendAppMessage, so the second one often failed with APP_MSG_BUSY
+  // and the watch kept an old wake schedule. Same key = newest message wins.
+  var cgmOutbox = require('./cgm').outbox('supercgm');
+
   var cgm = require('./cgm')({
     name: 'supercgm',
     settings: function() {
@@ -375,15 +380,15 @@ var keys = require('message_keys');
         BG_DELTA: isFinite(r.deltaMgdl) ? (mmol ? Math.round(r.deltaMgdl * 10 / 18) : Math.round(r.deltaMgdl)) : -9999,
         CGM_SOURCE: r.fallback ? 1 : 0
       };
-      Pebble.sendAppMessage(toKeyed(payload));
+      cgmOutbox.send(toKeyed(payload), 'BG', { key: 'bg' });
     },
     onStatus: function(code) {
       var st = code === 'NO_APP' ? BG_STATUS.NO_APP : code === 'NO_CONN' ? BG_STATUS.NO_CONN : BG_STATUS.NO_DATA;
-      Pebble.sendAppMessage(toKeyed({ BG_STATUS: st }));
+      cgmOutbox.send(toKeyed({ BG_STATUS: st }), 'BG status', { key: 'bg' });
     },
     onWakeSchedule: function(next, interval) {
       // The watch wakes this JS with REQUEST_BG at the app's next wake (reliable clock).
-      Pebble.sendAppMessage(toKeyed({ CGM_WAKE_NEXT: next, CGM_WAKE_INTERVAL: interval }));
+      cgmOutbox.send(toKeyed({ CGM_WAKE_NEXT: next, CGM_WAKE_INTERVAL: interval }), 'wake schedule', { key: 'wake' });
     }
   });
 

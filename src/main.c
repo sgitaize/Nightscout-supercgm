@@ -873,11 +873,7 @@ static void update_time(void) {
 // Messaging
 // ── Last reading and wake timer (pebble-cgm) ──────────────────────────────────
 static void request_bg_now(void) {
-  DictionaryIterator *iter;
-  if (app_message_outbox_begin(&iter) == APP_MSG_OK) {
-    dict_write_int32(iter, MESSAGE_KEY_REQUEST_BG, 1);
-    app_message_outbox_send();
-  }
+  cgm_send_request(MESSAGE_KEY_REQUEST_BG);   // retries while the outbox is busy
 }
 
 static void save_last_bg(void) {
@@ -1105,11 +1101,7 @@ static void bg_watchdog(void) {
   if (now - s_bg_timestamp < interval_sec + 180 || now - s_last_bg_req_ts < 180) return;
   if (!connection_service_peek_pebble_app_connection()) return;
   s_last_bg_req_ts = now;
-  DictionaryIterator *iter;
-  if (app_message_outbox_begin(&iter) == APP_MSG_OK) {
-    dict_write_int32(iter, MESSAGE_KEY_REQUEST_BG, 1);
-    app_message_outbox_send();
-  }
+  cgm_send_request(MESSAGE_KEY_REQUEST_BG);   // retries while the outbox is busy
 }
 
 static void request_weather(void) {
