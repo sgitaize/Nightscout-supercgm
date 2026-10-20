@@ -1,16 +1,104 @@
 ![Nightscout SuperCGM Banner](assets/banner.png)
 
-# supercgm-ns
+# Nightscout-supercgm
 
-**Flexible Pebble watchface for CGM + weather with a fully customizable 5-slot grid per row.**  
-Designed for both color and black-and-white Pebble devices, including Round models.  
-About **90 % of the code was developed collaboratively with GitHub Copilot (Claude Sonnet)**, making it especially easy to extend and maintain.
+**English** · [Deutsch](README.de.md)
 
----
+A flexible Pebble watchface for **CGM and weather** with a fully customisable 5-slot grid per row – for colour and black-and-white Pebbles, including the round models.
 
-## ☕ Support
+**Status:** in the Pebble Appstore · data from Nightscout or [iPump-mini](https://github.com/sgitaize/iPump-mini) · all Pebble models · actively maintained
 
-If this watchface saves you from checking your phone 50 times a day — consider buying me a Paulaner Spezi!
+## Get it
+
+| | |
+|---|---|
+| **Pebble Appstore** | [supercgm-ns](https://apps.rePebble.com/68c5e8d5474b97000932ae2c) – install from the Pebble app on your phone |
+| **Releases** | [`.pbw` on GitHub](https://github.com/sgitaize/Nightscout-supercgm/releases/latest) for side-loading |
+| **Settings** | gear icon in the Pebble app → [settings page](https://sgitaize.github.io/Nightscout-supercgm/config/) (English / German) |
+
+## Features
+
+- **Customisable rows** – per row choose one: weather · time · date · weekday · battery · BG · steps · heart rate · BG time · BG delta · rain in the next 3 h
+- **Two CGM sources:** Nightscout (`/pebble`, default) or [iPump-mini](https://github.com/sgitaize/iPump-mini), the iPhone app that reads a MiniMed 780G directly – no internet needed; Nightscout can act as a fallback (small cloud symbol)
+- **Battery-friendly sync** right after each new reading; with iPump-mini it follows the app's wake schedule, and the watch nudges the phone if it stays quiet
+- **Per-row colours**, plus in-range / high / low BG colours and a ghost grid colour
+- **Ghost rendering tuned per platform** – visible ghost colour on colour Pebbles, a subtle dotted skeleton on Aplite, a grey ghost on Diorite; density configurable from 1 to 5
+- **Weather via Open-Meteo** (no API key, °C/°F) with rain probability for the next 3 hours
+- **Settings page with live simulator** – watch shape, row types and colours, sample values, ghost density and a main/shake toggle, rendered in a DSEG font close to the real watch
+- **Persistent storage** on watch and phone; the last BG value survives a restart
+
+### Alerts & behaviour
+- **Vibration on low BG** – 3 short pulses, **on high BG** – 2 pulses (each configurable, 10-minute cooldown)
+- **Backlight on shake** (Pebble Time and newer)
+- **Bluetooth lost** – a single buzz and **NOCON** on the display
+
+### Shake to reveal
+Shake or tap the watch to overlay extra info for 5 seconds: steps · battery · heart rate · BG · **BG time** · **BG delta** · **rain next 3 h**. The settings page has a shake preview, so you can check the second level before saving.
+
+## Platforms
+
+| Platform | Display | Rows |
+|---|---|---|
+| Basalt (Pebble Time) | colour | 5 |
+| Chalk (Pebble Time Round) | colour, round | 4 |
+| Gabbro (Pebble Round 2) | colour, round | 5 |
+| Emery (Pebble Time 2) | colour | 5 |
+| Flint (Pebble 2 Duo) | B/W | 5 |
+| Aplite (Pebble / Pebble Steel) | B/W | 5 |
+| Diorite (Pebble 2) | B/W | 5 |
+
+## Architecture
+
+<p align="center"><img src="docs/architecture.png" alt="Architecture: the watchface and the C part of pebble-cgm on the watch talk via AppMessage to PebbleKit JS on the phone, which fetches from Nightscout or iPump-mini and weather services; settings come from a page on GitHub Pages" width="100%"></p>
+
+<sub>Source: <a href="docs/architecture.mmd">docs/architecture.mmd</a> (Mermaid)</sub>
+
+**How it works**
+- **The watch draws, the phone fetches.** The C code renders the rows and keeps the last value; the JavaScript in the Pebble app (PebbleKit JS) talks to the internet and sends compact AppMessages.
+- **pebble-cgm** handles everything CGM on both sides: choosing the source, timing fetches after each new reading, the iPump-mini wake schedule, fallback to Nightscout, a send queue with acknowledgements, and a watchdog on the watch. The same library runs in [CasioCGM](https://github.com/sgitaize/casiocgm) and [91 Dub CGM](https://github.com/sgitaize/dubv4cgm).
+- **Settings** are a static page on GitHub Pages; the configuration travels in the URL fragment, so your Nightscout token never reaches a server.
+- **Layout per platform:** rectangular models get 5 rows, the original round Pebble 4 with tighter spacing, Round 2 a tuned round layout.
+
+| Part | Where | What it does |
+|---|---|---|
+| Watchface | `src/main.c` | rows, ghost grid, colours, shake, persistence |
+| CGM (watch) | `src/cgm.c` | last value, status, watchdog, wake timer (from pebble-cgm) |
+| Phone script | `src/js/pebble-js-app.js` | settings, weather, location, messages to the watch |
+| CGM (phone) | `src/js/cgm.js` | Nightscout / iPump-mini, scheduling, fallback (from pebble-cgm) |
+| Settings page | `web/config/` | simulator, English / German, published by `.github/workflows/pages.yml` |
+| Message keys | `package.json` → `pebble.messageKeys` | single source of truth for watch ↔ phone keys |
+| Store listing | `store/` | description, screenshots, `publish.sh` |
+
+## Configuration
+
+Open the watchface settings from the Pebble app. The [settings page](https://sgitaize.github.io/Nightscout-supercgm/config/) adapts to the platform (row count, B/W palette, ghost visibility, preview layout); presets include the older models plus Time 2 and Round 2. Default language is English, with a German switch on the page.
+
+**CGM:** choose Nightscout or iPump-mini. For Nightscout enter your base URL (the app requests `<URL>/pebble`) and an optional token; for iPump-mini you can enable Nightscout as fallback.
+
+- No BG available → **NO-BG**, connection lost → **NOCON**, stale → **OLD-BG**, iPump-mini not running → **NOAPP**
+- Trend arrows are drawn natively (↑, ↗, →, ↘, ↓ and double variants); the delta comes from `bgs[0].bgdelta`
+- Timed fetches use the server time `status[0].now` and the reading time `bgs[0].datetime` (`datetime + interval + 30 s`)
+
+## Build & development
+
+Prerequisite: Pebble SDK 4.33 (`pebble` CLI, pebble-tool 5).
+
+```bash
+pebble build                          # app + generated message keys
+pebble install --phone <PHONE_IP>     # on your phone
+pebble install --emulator emery       # Time 2 · also chalk, gabbro, diorite, aplite …
+```
+
+Changes under `web/` on `main` are published to GitHub Pages automatically. The watch passes its settings in the URL fragment (`#config=…`), so the page shows them on any host. Versions before 2.4 still open the old page at supercgm-config.aize-it.de/config20.
+
+## Status & roadmap
+
+- **Live:** 2.8 in the Pebble Appstore (Nightscout and iPump-mini, reliability fixes from pebble-cgm 1.1.0).
+- Ideas, bug reports and pull requests are welcome – open an [issue](https://github.com/sgitaize/Nightscout-supercgm/issues).
+
+## Support
+
+If this watchface saves you from checking your phone 50 times a day – consider buying me a Paulaner Spezi!
 
 <p align="center">
   <a href="https://www.paypal.com/donate/?hosted_button_id=LGAZB9PR4YV5L">
@@ -18,148 +106,10 @@ If this watchface saves you from checking your phone 50 times a day — consider
   </a>
 </p>
 
----
+## Credits
 
-## 📲 Quick Install
+About 90 % of the code was pair-programmed with AI assistants (GitHub Copilot with Claude, later [Claude Code](https://claude.com/claude-code)), which keeps it easy to extend.
 
-- **Rebble App Store**  
-  Available directly in the Rebble store:  
-  [https://apps.rebble.io/en_US/application/68c5e8d5474b97000932ae2c?query=Cgm&section=watchfaces](https://apps.rebble.io/en_US/application/68c5e8d5474b97000932ae2c?query=Cgm&section=watchfaces)
+## License
 
-- **Direct Sideload (.pbw)**  
-  Pre-built `.pbw` bundles are available under  
-  [GitHub Releases](../../releases).  
-  Download the latest release and sideload it using the Rebble phone app.
-
----
-
-## ✨ Features
-
-- **Customizable rows (per row choose one):**  
-  Weather · Time · Date · Weekday · Battery · Nightscout BG · Steps · Heart Rate · BG Time · BG Delta · Rain next 3h
-- **Per-row color customization**, plus in-range / high / low BG colors and ghost grid color
-- **Ghost rendering tuned per platform** — color platforms use a visible ghost color; Aplite uses a subtle dotted skeleton; Diorite uses a visible grayscale ghost setting
-- **Ghost density control** — configurable 1..5 dot density for the ghost background
-- **Improved color UX in config:** native color picker + fallback palettes + live swatch preview + readable color labels
-- **Live config simulator:** shows the selected watch shape, configured row types, row colors, sample values, ghost density, and a main/shake preview toggle
-- **DSEG-based preview fonts** — the config simulator renders much closer to the actual watchface font than a generic monospace fallback
-- **Phone-side background fetch** for Nightscout BG (manual interval or timestamp-synced mode)
-- **Weather via Open-Meteo** (no API key needed, supports °C/°F) + rain probability for next 3 hours
-- **Persistent storage** on watch and phone (survives restarts)
-- **Platform-aware layout:**
-  - Rectangular (Aplite/Diorite/Basalt/Flint/Emery): 5 rows
-  - Legacy round (Chalk): 4 rows with tighter vertical spacing
-  - Round 2 (Gabbro): tuned round layout with 5 rows
-
-### 🔔 Alerts & Behaviour
-- **Vibration on low BG** — 3 short pulses (configurable, 10-minute cooldown)
-- **Vibration on high BG** — 2 short pulses (configurable, 10-minute cooldown)
-- **Backlight on shake** — lights up the display when the watch is shaken (Pebble Time+)
-- **Bluetooth reconnect notification** — single buzz + NOCON display when Bluetooth drops
-
-### 📳 Shake to Reveal
-Shake or tap the watch to overlay extra info for 5 seconds.  
-Configurable content:
-- Steps · Battery · Heart Rate · BG / CGM
-- **BG Time** — time of last Nightscout reading
-- **BG Delta** — signed delta from Nightscout (`bgdelta`, e.g. +6 / -4)
-- **Rain next 3h** — rain probability forecast for your location
-- The config simulator also has a dedicated **Shake preview** button so the second level can be checked before syncing to the watch.
-
----
-
-## 🕹 Platforms
-
-| Platform | Display | Rows |
-|---|---|---|
-| Basalt (Pebble Time) | Color | 5 |
-| Chalk (Pebble Time Round) | Color, round | 4 |
-| Gabbro (Pebble Round 2) | Color, round | 5 |
-| Emery (Pebble Time 2) | Color | 5 |
-| Aplite (Pebble / Pebble Steel) | B/W | 5 |
-| Diorite (Pebble 2) | B/W | 5 |
-
----
-
-## ⚙️ Configuration
-
-Open the watchface settings from the Pebble/Rebble phone app.  
-The settings page (GitHub Pages: https://sgitaize.github.io/Nightscout-supercgm/config/) adapts to the platform (row count, B/W palette, ghost visibility, and preview layout).  
-Default language is **English** with an in-page **English/German language chooser**.
-Presets include legacy models plus **Time 2** and **Round 2**.
-
-The live simulator mirrors the selected watch variant:
-
-- selected preset/platform
-- row count and round/rect slot hiding
-- row types and per-row colors
-- example values for time, date, weekday, weather, BG, delta, steps, heart rate, BG timestamp, and rain
-- ghost dot density
-- main vs shake preview
-
----
-
-## 🌙 Nightscout Integration
-
-- Enter your base Nightscout URL; the app requests `<URL>/pebble`.
-- If no BG is available → displays **NO-BG**; if connection lost → **NOCON**; if stale → **OLD-BG**.
-- Trend arrows are drawn natively (↑, ↗, →, ↘, ↓ and double variants).
-- BG delta is parsed from `bgs[0].bgdelta` and can be shown as row value.
-- Sync mode uses `status[0].now` as server time and `bgs[0].datetime` as reading time to schedule the next fetch (`datetime + interval + 30s`).
-
----
-
-## 🛠 Build & Development
-
-Prerequisites: [Rebble SDK](https://developer.rebble.io/developer.pebble.com/sdk) (Pebble SDK 4.x) with `pebble` CLI.
-
-**Quick start**
-```bash
-pebble build                                # Build app + regenerate message key artifacts
-pebble install --phone <PHONE_IP>           # Install on phone
-pebble install --emulator chalk             # Test on legacy Round emulator
-pebble install --emulator gabbro            # Test on Round 2 emulator
-pebble install --emulator emery             # Test on Time 2 emulator
-pebble install --emulator diorite           # Test on B/W emulator
-```
-
-**Deploy config website**
-
-Pushing changes under `web/` to `main` publishes them automatically to GitHub Pages
-(workflow `.github/workflows/pages.yml`): https://sgitaize.github.io/Nightscout-supercgm/config/index.html.
-The watch passes its current settings in the URL fragment (`#config=…`), so the page shows them on any host.
-Versions before 2.4 still open the old page at supercgm-config.aize-it.de/config20.
-
-Development tips:
-- Phone code: `src/js/pebble-js-app.js`
-- Watch code: `src/main.c`
-- Web config: `web/config/`
-- AppMessage keys: `package.json` → `pebble.appKeys` (source of truth for generated message keys)
-
-Recent implementation notes:
-- Ghost text layers are hidden; the ghost is rendered by a dotted hatch layer in `src/main.c`.
-- Ghost density is configurable and sent as `GHOST_DENSITY`.
-- The config simulator uses a DSEG webfont for near-watch-like rendering and falls back gracefully if the font is unavailable.
-- The simulator includes a main/shake toggle, so you can preview the secondary row mapping before saving.
-
----
-
-## 💡 Contributing
-
-This project is **open source (MIT License)** and welcomes:
-- New feature ideas
-- Bug reports
-- Pull requests and forks
-- Other Devs to help building this watchface
-
-About **90 % of the implementation was "Vibe-coded" with GitHub Copilot (Claude Sonnet)**,  
-which means the majority of the logic was pair-programmed and iteratively refined together with an AI assistant.  
-If you have an idea for a new function, feel free to open an issue or PR.
-
----
-
-
-## 📜 License
-
-This project is released under the [MIT License](LICENSE).  
-You are free to use, modify, and distribute it, provided that the license terms are respected.
+[MIT](LICENSE.txt) – you are free to use, modify and distribute it under the license terms.

@@ -1,0 +1,31 @@
+flowchart LR
+  subgraph Watch["Pebble watch  ·  all Pebble models"]
+    F("<b>Watchface</b><br/><small><code>src/main.c</code></small><br/><small>14-segment rows</small>")
+    CC("<b>pebble-cgm · C</b><br/><small><code>src/cgm.c</code></small><br/><small>last value · watchdog · wake timer</small>")
+    CC --> F
+  end
+  subgraph Phone["Phone  ·  Pebble app"]
+    J("<b>PebbleKit JS</b><br/><small><code>src/js/pebble-js-app.js</code></small><br/><small>settings · weather · location</small>")
+    CJ("<b>pebble-cgm · JS</b><br/><small><code>src/js/cgm.js</code></small><br/><small>source · fallback · send queue</small>")
+    J --- CJ
+  end
+  subgraph Src["Data sources"]
+    NS("<b>Nightscout</b><br/><small><code>/pebble</code> · default</small>")
+    OMP("<b>iPump-mini</b><br/><small>local API <code>127.0.0.1:17580</code></small>")
+    WX("<b>Open-Meteo · wttr.in</b><br/><small>weather</small>")
+  end
+  CFG("<b>Settings page</b><br/><small>GitHub Pages · <code>web/config/</code></small>")
+  CC <-->|AppMessage| CJ
+  CJ -->|HTTPS| NS
+  CJ -.->|"wake schedule · Nightscout as fallback"| OMP
+  J -->|HTTPS| WX
+  J -.->|opens| CFG
+
+  classDef client stroke:#58a6ff,stroke-width:1.5px
+  classDef core stroke:#f0883e,stroke-width:1.5px
+  classDef server stroke:#3fb950,stroke-width:1.5px
+  classDef ext stroke:#a371f7,stroke-width:1.5px
+  class F client
+  class CC,CJ core
+  class J,CFG server
+  class NS,OMP,WX ext
